@@ -144,7 +144,7 @@ def set_doors_hardcode():
 
 def hints():
 	import a
-	print(a.a["420420"])
+	print(a.a["text"]["420420"])
 
 hints()
 # set_doors_hardcode()
