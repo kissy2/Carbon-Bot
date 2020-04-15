@@ -1,0 +1,1 @@
+cd/dd:/sniffbot2.0-light&&"venv/scripts/activate"&&py launch.py
