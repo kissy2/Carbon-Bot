@@ -1,0 +1,1 @@
+cd /d "d:/sniffbot2.0-light" && "venv/scripts/activate" && cd .. && cd "AssetsManager-master/raw_transformer" && py assets_transformer.py "d:/Ankama/dofus" 

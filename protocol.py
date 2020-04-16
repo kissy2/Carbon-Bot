@@ -560,7 +560,6 @@ def read(type, data: Data):
             useful["fight"]["turn"] = True
 
     elif ans["__type__"] == "GameFightStartMessage":
-        print("started")
         useful["fight"]["fight_state"] = "Started"
         del useful["fight"]["positionsForDefenders"]
         del useful["fight"]["positionsForChallengers"]
@@ -619,7 +618,6 @@ def read(type, data: Data):
 
     elif ans["__type__"] == "GameFightPlacementPossiblePositionsMessage":
         id = 703
-        print(ans)
         useful["fight"]["positionsForChallengers"] = ans["positionsForChallengers"]
         useful["fight"]["positionsForDefenders"] = ans["positionsForDefenders"]
         useful["fight"]["my_teamid"] = ans["teamNumber"]
@@ -677,7 +675,6 @@ def read(type, data: Data):
                             useful["fight"]["enemyteamMembers"][int(member["id"])]["grade"] = member["grade"]
                             useful["fight"]["enemyteamMembers"][int(member["id"])]["monsterId"] = member["monsterId"]
                         except:
-                            print(useful["fight"]["enemyteamMembers"])
                             useful["fight"]["enemyteamMembers"][int(member["id"])] = {}
                             useful["fight"]["enemyteamMembers"][int(member["id"])]["grade"] = member["grade"]
                             useful["fight"]["enemyteamMembers"][int(member["id"])]["monsterId"] = member["monsterId"]
