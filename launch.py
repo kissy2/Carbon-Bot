@@ -93,7 +93,7 @@ def check_arch(l):
 							c,r=collection.nodes.find_one({'mapid':useful['mapid']},{'coord':1})['coord'],f.read()
 							f.seek(0)
 							f.write('%s : Name : %s , Level : %s , Coord : %s\n'%(strftime("%A, %d %B %Y %H:%M:%S", localtime()),l[i[0]],i[1],c)+r)
-							notify.show_toast(title='ArchMonster Found !',msg='%s\n%s\n%s'%(l[i[0]],i[1],c),duration=60,threaded=True)
+							notify.show_toast(title='ArchMonster Found !',msg='%s\n%s\n%s'%(l[i[0]],i[1],c),duration=600,threaded=True)
 
 def collect(rsc,farmer_exception,e=None,out=False):
 	count,lc=7,useful['mypos']
@@ -127,18 +127,33 @@ def execute(paths_names, rsc=[], check_archi=True, rotation=1):
 			collect(rsc,farmer_exception,out=True)
 			app.send_keystrokes('{VK_SHIFT}')
 			wait_check_fight(6,7)
-			# if useful['inventory_weight'] / useful['inventory_max']>.9:
-			# 	teleport()
-
+			if useful['inventory_weight'] / useful['inventory_max']>.9:
+				teleport('koalak')
+				for e in pathfinder(get_current_node(1),collection.nodes.find_one({'mapid':84935175},{'_id':1})['_id']):
+					click(cell:=get_closest(e[0],useful['mypos'],e[1]),direction=e[1])
+					cond_wait(1.5,3,('mapid',useful['mapid'],count,wrapper(click,cell,direction=e[1])))
+				click(330,offy=-20)
+				wait_check_fight(2,3)
+				app.send_keystrokes('{DOWN}')
+				wait_check_fight(2,3)
+				app.send_keystrokes('{ENTER}')
+				wait_check_fight(3,5)
+				click(80,offx=40,offy=-7)
+				wait_check_fight(1,1.5)
+				click(80,offx=-15,offy=-7)
+				wait_check_fight(1,1.5)
+				click(80,offy=16)
+				wait_check_fight(1,1.5)
+				app.send_keystrokes('{VK_ESCAPE}')
 		rotation-=1
 	print("out bot")
 
 
-
+# Thread(target=sniff, kwargs={'filter':'tcp port 5555 ', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
 
 # print(pathfinder('8857','8143'))
-execute(paths_names=['elm','icefish','aspen'],rsc=['silicate','sage','freyesque','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry'])
-# Thread(target=sniff, kwargs={'filter':'tcp port 5555', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
+execute(paths_names=['elm','icefish','aspen','holy'],rsc=['silicate','sage','freyesque','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry'])
+# Thread(target=sniff, kwargs={'filter':'tcp port 5555 ', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
 # sleep(3)
 # while 1:
 	# print(useful['resources'])
