@@ -25,7 +25,7 @@ def shortest(heap,target,c=True):
 		del heap[j-decal]
 		decal+=1
 	return ret,heap,None 
-
+from time import time
 def pathfinder(start,target,shuffle=True,multipath=False):
 	print("find path from ",start,target)
 	f,g,get=lambda s,t:4*(abs(t[0]-s[0] if t[0]>0 and s[0]>0 or t[0]<0 and s[0]<0 else abs(t[0])+abs(s[0]))+abs(t[1]-s[1] if t[1]>0 and s[1]>0 or t[1]<0 and s[1]<0 else abs(t[1])+abs(s[1]))),lambda x:sample(('n','s','w','e','d'),5) if x else ('n','s','w','e','d'),lambda x:collection.nodes.find_one({'_id':x},{'coord':1,'n':1,'s':1,'w':1,'e':1,'d':1,'interactives':1})
@@ -52,8 +52,7 @@ def pathfinder(start,target,shuffle=True,multipath=False):
 							wait.insert(0,node[0]+[k])
 						else:
 							done.add(k)
-							neighbor=get(k)
-							heap.insert(0,[node[0]+[neighbor],f(neighbor['coord'],target['coord'])])
+							heap.insert(0,[node[0]+[neighbor:=get(k)],f(neighbor['coord'],target['coord'])])
 
 def click(cellid,offx=0,offy=0,alt=0,direction=None):
 	limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+12) if odd else (x[0],x[1]+25) ,'n':lambda x,odd:(x[0],x[1]-25) if odd else (x[0],x[1]-10),'w':lambda x,odd:(x[0]-45,x[1]) if odd else (x[0]-18,x[1]),'e':lambda x,odd:(x[0]+18,x[1]) if odd else (x[0]+45,x[1])},258,16,cellid//14,cellid % 14
@@ -61,8 +60,8 @@ def click(cellid,offx=0,offy=0,alt=0,direction=None):
 		x+=30
 	if direction:
 		x,y=limit[direction]((x,y),odd)
-	print("click",cellid)
-	app.click(coords=(x+floor(row*61.7)+(ceil(offx*2/3) if offx else 0), y+floor(15.35*line)+offy-8*alt))
+	print("click",cellid,offx,offy,alt)
+	app.click(coords=(x+floor(row*61.7)+ceil(offx*2/3), y+floor(15.35*line)+offy-8*alt))
 	sleep(0.25)
 
 def switch_coord(c):
@@ -111,6 +110,7 @@ def get_current_node(cond=0):
 		projec['interactives']=1
 	for n in collection.nodes.find({'mapid':useful['mapid']},projec):
 		if cond or useful['mypos'] in n['walkable']:
+			print('nid',n['_id'])
 			return n['_id'] if cond==1 else n['interactives'] if cond==2 else n['fightcells']
 	print("out empty")
 
@@ -174,11 +174,12 @@ def check_spells(spells,buffs,mat):
 		for x in xx.values():
 			if x['fc']:
 				x['fc']-=1
+	wait(1.5,2)
 	return spells,buffs
 
-def fight(call,first_fight=False):
+def fight(first_fight=False):
 	app.send_keystrokes('{VK_SHIFT}')
-	print("call infight",call)
+	print("call infight")
 	if first_fight:
 		click(557,offy=20,offx=15)
 		wait(.5,.75)
@@ -198,9 +199,6 @@ def fight(call,first_fight=False):
 		click(557,offy=45)
 		while not useful['fight']['turn']:
 			wait(1.5,3)
-		print("new turn",useful['infight'])
 		spells,buffs=check_spells(spells,buffs,mat)
-		if not spells:
-			break
-	wait(3,5)
+	wait(2.5,3)
 	app.send_keystrokes('{ENTER}')

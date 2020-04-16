@@ -20,7 +20,6 @@ def get_closest(edge, pos , direction):
 		length-=1
 		if not j:
 			prev=m
-	print (ret,edge,pos,direction)
 	return ret[randint(0,len(ret)-1)]
 
 def wrapper(func, *args, **kwargs):
@@ -60,11 +59,11 @@ def order(l):
 		l.pop(i)
 	return ret
 
-def wait_check_fight(call,tmin,tmax,cond=0):
+def wait_check_fight(tmin,tmax,cond=0):
 	global first_fight
 	sleep(uniform(tmin,tmax))
 	if useful['infight'] and cond!=-1:
-		fight(call,first_fight)
+		fight(first_fight)
 		first_fight=False
 		print("out")
 
@@ -73,7 +72,6 @@ def cond_wait(tmin,tmax,cond):
 	while useful[cond[0]] == cond[1]:
 		if tries == cond[2]:
 			print("forced break after timeout",useful['mapid'],cond[1],useful[cond[0]] == cond[1])
-			notify.show_toast(title='check it out')
 			app.send_keystrokes('{VK_SHIFT}')
 			cond[3]()
 			sleep(2)
@@ -81,7 +79,7 @@ def cond_wait(tmin,tmax,cond):
 				cond_wait(tmin,tmax,cond)
 			return True
 		tries+=1
-		wait_check_fight(cond_wait,tmin,tmax,cond[2])
+		wait_check_fight(tmin,tmax,cond[2])
 
 def check_arch(l):
 	while 1:
@@ -91,9 +89,10 @@ def check_arch(l):
 			if 'info' in m[1].keys():
 				for i in m[1]['info']:
 					if i[0] in l.keys():
-						with open('ArchMonsters.txt','w+') as f:
-							c=collection.nodes.find_one({'mapid':useful['mapid']},{'coord':1})['coord']
-							f.write('%s : Name : %s , Level : %s , Coord : %s\n'%(strftime("%A, %d %B %Y %H:%M:%S", localtime()),l[i[0]],i[1],c)+f.read())
+						with open('ArchMonsters.txt','r+') as f:
+							c,r=collection.nodes.find_one({'mapid':useful['mapid']},{'coord':1})['coord'],f.read()
+							f.seek(0)
+							f.write('%s : Name : %s , Level : %s , Coord : %s\n'%(strftime("%A, %d %B %Y %H:%M:%S", localtime()),l[i[0]],i[1],c)+r)
 							notify.show_toast(title='ArchMonster Found !',msg='%s\n%s\n%s'%(l[i[0]],i[1],c),duration=60,threaded=True)
 
 def collect(rsc,farmer_exception,e=None,out=False):
@@ -101,15 +100,11 @@ def collect(rsc,farmer_exception,e=None,out=False):
 	if out:
 		e=get_current_node(2)
 	app.send_keystrokes('{VK_SHIFT DOWN}')
-	for c in order([x['elementCellId'] if x['enabledSkill'] not in farmer_exception else x['elementCellId']-28 for x in useful['resources'].values() if x['enabledSkill'] in rsc]):
-		count,s=count+3,str(c)
-		try:
-			click(c ,offx=e[s]['xoffset']+2,offy=e[s]['yoffset'],alt=e[s]['altitude'],first=first)
-		except:
-			pass
-			print("error in collect",c,useful['mapid'],useful['mypos'],e)
+	for c in order([x['elementCellId'] if x['enabledSkill'] not in farmer_exception else x['elementCellId']-28 for x in useful['resources'].values() if (str(x['elementCellId']) in e and x['enabledSkill'] in rsc )]):
+		s=str(c)
+		click(c ,offx=e[s]['xoffset'],offy=e[s]['yoffset'],alt=e[s]['altitude'])
 		count,lc=count+3,c
-	return count,int(lc)
+	return count,lc
 
 
 def execute(paths_names, rsc=[], check_archi=True, rotation=1):
@@ -131,17 +126,18 @@ def execute(paths_names, rsc=[], check_archi=True, rotation=1):
 					print("mapchanged",prev,useful['mapid'])
 			collect(rsc,farmer_exception,out=True)
 			app.send_keystrokes('{VK_SHIFT}')
-			wait_check_fight(execute,6,7)
-			if useful['inventory_weight'] / useful['inventory_max']>.9:
-				teleport(sample(['amakna','koalak','coastal','frigost'],2))
+			wait_check_fight(6,7)
+			# if useful['inventory_weight'] / useful['inventory_max']>.9:
+			# 	teleport()
+
 		rotation-=1
 	print("out bot")
 
 
-# execute(paths_names=['elm','aspen','icefish&tench'],rsc=['sage','freyesque','lard','ebony','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry'])
-# print(switch_coord(14),switch_coord(484))
-# print(get_closest([14, 28, 42, 56, 70, 84, 98, 112, 126, 140, 154, 168, 182, 196, 210, 224, 238, 252, 266, 280],484))
-# click(420,first=False)
+
+
+# print(pathfinder('8857','8143'))
+execute(paths_names=['elm','icefish','aspen'],rsc=['silicate','sage','freyesque','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry'])
 # Thread(target=sniff, kwargs={'filter':'tcp port 5555', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
 # sleep(3)
 # while 1:

@@ -142,11 +142,6 @@ def set_doors_hardcode():
 			temp[collection.nodes.find_one({'_id':get_current_node(1)},{'_id':1})['_id']]=int(x)
 		collection.nodes.update_one({'_id':nid},{'$set':{'d':temp}})
 
-def hints():
-	import a
-	print(a.a["text"]["420420"])
-
-hints()
 # set_doors_hardcode()
 # create_nodes()
 # link_nodes()

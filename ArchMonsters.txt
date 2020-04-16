@@ -1,1 +1,4 @@
-Wednesday, 15 April 2020 08:57:21 : Name : Pocher the Kingponger , Level : 85 , Coord : [30, -42]
+Thursday, 16 April 2020 08:13:25 : Name : Crowmanion the Primitive , Level : 104 , Coord : [-12, -61]
+Thursday, 16 April 2020 07:22:47 : Name : Milivanilli the Mime , Level : 30 , Coord : [3, 17]
+Thursday, 16 April 2020 07:31:49 : Name : Treekness the Dark , Level : 134 , Coord : [-52, 19]
+Thursday, 16 April 2020 07:22:47 : Name : Milivanilli the Mime , Level : 30 , Coord : [3, 17]
