@@ -53,9 +53,10 @@ def pathfinder(start,target,shuffle=True,multipath=False):
 						else:
 							done.add(k)
 							heap.insert(0,[node[0]+[neighbor:=get(k)],f(neighbor['coord'],target['coord'])])
+	return []
 
 def click(cellid,offx=0,offy=0,alt=0,direction=None):
-	limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+12) if odd else (x[0],x[1]+25) ,'n':lambda x,odd:(x[0],x[1]-25) if odd else (x[0],x[1]-10),'w':lambda x,odd:(x[0]-45,x[1]) if odd else (x[0]-18,x[1]),'e':lambda x,odd:(x[0]+18,x[1]) if odd else (x[0]+45,x[1]),'d': lambda x,odd:(x[0],x[1])},258,16,cellid//14,cellid % 14
+	limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+12) if odd else (x[0],x[1]+25) ,'n':lambda x,odd:(x[0],x[1]-25) if odd else (x[0],x[1]-10),'w':lambda x,odd:(x[0]-45,x[1]) if odd else (x[0]-18,x[1]),'e':lambda x,odd:(x[0]+18,x[1]) if odd else (x[0]+45,x[1]),'d': lambda x,odd:(x[0],x[1])},258,15,cellid//14,cellid % 14
 	if odd:=line%2:
 		x+=30
 	if direction:

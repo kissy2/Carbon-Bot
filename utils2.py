@@ -65,18 +65,16 @@ def link_nodes():
 
 def set_skills():
 	collection.skills.delete_many({})
-	links=["resources?text=&EFFECTMAIN_and_or=AND&object_level_min=1&object_level_max=200&type_id[0]=38&EFFECT_and_or=AND&size=96","resources?text=&EFFECTMAIN_and_or=AND&object_level_min=1&object_level_max=200&type_id%5B%5D=34&EFFECT_and_or=AND#jt_list","resources?text=&EFFECTMAIN_and_or=AND&object_level_min=1&object_level_max=200&type_id%5B%5D=41&EFFECT_and_or=AND#jt_list","resources?text=&EFFECTMAIN_and_or=AND&object_level_min=1&object_level_max=200&type_id%5B%5D=36&EFFECT_and_or=AND#jt_list","resources?text=&EFFECTMAIN_and_or=AND&object_level_min=1&object_level_max=200&type_id%5B%5D=35&EFFECT_and_or=AND#jt_list"]
 	with open('./assets/skills.json', 'r', encoding='utf8') as g: 
 		skills={} 
 		for x in load(g): 
 			if 'gatheredRessourceItem' in x.keys() and x['gatheredRessourceItem']>0:
 				skills[x['gatheredRessourceItem']]=[x['id'],] if x['gatheredRessourceItem'] not in skills.keys() else skills[x['gatheredRessourceItem']]+[x['id']]
-	for l in links:
-		for x in opener.open(req(base+l)).read().decode('utf8', errors='ignore').split("<td>")[1:]:
+	for i in range(1,4):
+		for x in opener.open(req(base+"resources?text=&EFFECTMAIN_and_or=AND&object_level_min=1&object_level_max=200&type_id[0]=34&type_id[1]=41&type_id[2]=35&type_id[3]=39&type_id[4]=36&type_id[5]=38&EFFECT_and_or=AND&size=96&page="+str(i))).read().decode('utf8', errors='ignore').split("<td>")[1:]:
 			if f:=search(reg,x):
 				f=f.group(0)
-				gid=int(f[:f.index('-')])
-				if gid in skills.keys():
+				if (gid:=int(f[:f.index('-')])) in skills.keys():
 					collection.skills.insert_one({'_id':f[f.index('>')+1:],'skill_id':skills[gid],'gid':gid})
 
 def set_archmonsters():
