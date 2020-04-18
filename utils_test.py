@@ -61,7 +61,7 @@ def click(cellid,offx=0,offy=0,alt=0,direction=None):
 		x+=30
 	if direction:
 		x,y=limit[direction]((x,y),odd)
-	print("click",cellid,offx,offy,alt,(x+floor(row*61.8)+ceil(offx*2/3), y+floor(15.6*line)+offy-8*alt+38),direction)
+	print("click",cellid,offx,offy,alt)
 	app.click(coords=(x+floor(row*61.8)+ceil(offx*2/3), y+floor(15.6*line)+offy-8*alt))
 	sleep(0.25)
 
@@ -102,17 +102,15 @@ def insight(x0,y0,x1,y1,mat):
 		n -= 1
 	return True
 
-def get_current_node(cond=0,mapid=None,pos=None):
-	projec,(pos,mapid)={'walkable':1},(pos,mapid)if pos else (useful['mypos'],useful['mapid'])
+def get_current_node(cond=0):
+	projec={'walkable':1}
 	if not cond:
 		projec['fightcells']=1
 	elif cond==2:
 		projec['interactives']=1
-	elif cond==3:
-		projec['d']=1
-	for n in collection.nodes.find({'mapid':mapid},projec):
-		if not cond or pos in n['walkable']:
-			return n['_id'] if cond==1 else {'interactives':n['interactives'],'walkable':n['walkable']} if cond==2 else (n['_id'],n['d']) if cond==3 else n['fightcells']
+	for n in collection.nodes.find({'mapid':useful['mapid']},projec):
+		if cond or useful['mypos'] in n['walkable']:
+			return n['_id'] if cond==1 else {'interactives':n['interactives'],'walkable':n['walkable']} if cond==2 else n['fightcells']
 
 def get_path(x0,y0,x1,y1,mat,revert=True):
 	f,done=lambda x0,y0:abs(x0-x1)+abs(y0-y1),{revert_coord(x0,y0)}

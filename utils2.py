@@ -10,7 +10,7 @@ def get_neighbors(cell,shape,floor):
 	while heap:
 		cell,ooe=heap[0],heap[0]//14%2
 		for i in range(4):
-			if ooe and cell%14==13 and i in (1,2) or not ooe and cell%14==0 and i in (0,3):
+			if ooe and cell%14==13 and i in (1,2) or not ooe and not cell%14 and i in (0,3):
 				continue
 			next_cell=(to_add[i]+1 if ooe and i<2 else to_add[i] -1 if not ooe and i>1 else to_add[i])+cell
 			if -1<next_cell<560 and shape[next_cell] not in (1,2) and abs(abs(floor[cell])-abs(floor[next_cell]))<51 and next_cell not in heap and next_cell not in done:
@@ -71,7 +71,7 @@ def set_skills():
 			if 'gatheredRessourceItem' in x.keys() and x['gatheredRessourceItem']>0:
 				skills[x['gatheredRessourceItem']]=[x['id'],] if x['gatheredRessourceItem'] not in skills.keys() else skills[x['gatheredRessourceItem']]+[x['id']]
 	for i in range(1,4):
-		for x in opener.open(req(base+"resources?text=&EFFECTMAIN_and_or=AND&object_level_min=1&object_level_max=200&type_id[0]=34&type_id[1]=41&type_id[2]=35&type_id[3]=39&type_id[4]=36&type_id[5]=38&EFFECT_and_or=AND&size=96&page="+str(i))).read().decode('utf8', errors='ignore').split("<td>")[1:]:
+		for x in opener.open(req(base+"resources?text=&EFFECTMAIN_and_or=AND&object_level_min=1&object_level_max=200&type_id[0]=34&type_id[1]=41&type_id[2]=35&type_id[3]=39&type_id[4]=36&type_id[5]=38&type_id[6]=58&EFFECT_and_or=AND&size=96&page="+str(i))).read().decode('utf8', errors='ignore').split("<td>")[1:]:
 			if f:=search(reg,x):
 				f=f.group(0)
 				if (gid:=int(f[:f.index('-')])) in skills.keys():
@@ -130,17 +130,43 @@ def set_paths(worldmap=1):
 				collection.paths.insert_one(path)
 
 def set_doors_hardcode():
+	from win32api import GetCursorPos as gp
+	from json import dump
 	from launch import get_current_node,sniff,Raw,on_receive,on_msg,useful,Thread
-	Thread(target=sniff, kwargs={'filter':'tcp port 5555', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
+	with open('./assets/Doors.json', 'r', encoding='utf8') as f:
+		out=load(f)
+		for x in out:
+			temp={}
+			for k,v in x['d'].items():
+				temp[t]=temp[t]+[int(k)] if (t:=get_current_node(1,v[0],v[1])) in temp else [int(k)]
+			collection.nodes.update_one({'_id':get_current_node(1,x['mapid'],x['pos'])},{'$set':{'d':temp}})
+	# Thread(target=sniff, kwargs={'filter':'tcp port 5555', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
 	while 1:
-		input('Hit ENTER To Start')
-		temp={}
-		for x in collection.nodes.find_one({'_id':(nid:=get_current_node(1)),'d':{'$exists':True}},{'d'})['d']:
-			input(f'Move to the next map that link the Door {x} and hit ENTER')
-			temp[collection.nodes.find_one({'_id':get_current_node(1)},{'_id':1})['_id']]=int(x)
-		collection.nodes.update_one({'_id':nid},{'$set':{'d':temp}})
+		if (i:=input('*****HIT ENTER TO LINK DOORS _OR_ SPACE ENTER TO LINK CAVES*****'))=='':
+			with open('./assets/Doors.json', 'w', encoding='utf8') as f:
+				temp,temp1,node,pos,mapid={},{},get_current_node(3),useful['mypos'],useful['mapid']
+				for x in node[1]:
+					input(f'Move to the next map that link the Door at cell {x} and hit ENTER')
+					temp[tid]= temp[tid]+[int(x)] if (tid:=get_current_node(1)) in temp else [int(x)]
+					temp1[x]=(useful['mapid'],useful['mypos'])
+					print('DONE!\n')
+				out.append({'mapid':mapid,'pos':pos,'d':temp1})
+				dump(out,f)
+				collection.nodes.update_one({'_id':node[0]},{'$set':{'d':temp}})
+		elif i==' ':
+			input('*****MOVE THE CURSOR TO THE CAVE ENTERANCE AND HIT ENTER*****')
+			l,r,(cpx,cpy)=0,0,gp()
+			print(cpx,cpy)
+			while (c:=cpx-62)>252:
+				r,cpx=r+1,c
+			while (c:=cpy-16)>54:
+				l,cpy=l+1,c
+			print(l*14+r)
+		else:
+			print('not yet implemented maybe this option will add missing resources')
 
-# set_doors_hardcode()
+
+set_doors_hardcode()
 # create_nodes()
 # link_nodes()
 # set_paths()

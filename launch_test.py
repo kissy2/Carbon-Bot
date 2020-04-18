@@ -64,7 +64,7 @@ def check_adjc(l,mat,pos):
 		if temp:
 			(x0,y0),m=switch_coord(pos),600
 			for x in temp:
-				(x1,y1)=switch_coord(x)
+				x1,y1=switch_coord(x)
 				if (dist:=abs(x0-x1)+abs(y0-y1))<m:
 					c=x
 			return c
@@ -112,7 +112,6 @@ def wait_check_fight(tmin,tmax,cond=0):
 		prev=fight(first_fight)
 		first_fight=False
 		if useful['mypos']==prev:
-			print("fight forced break")
 			return 100
 		print("out fight")
 	return 1
@@ -151,35 +150,29 @@ def collect(rsc,priority,farmer_exception,e=None,out=False):
 	else:
 		t=collection.nodes.find_one({'_id':e},{'interactives':1,'walkable':1,'_id':0})
 	e,mat=t['interactives'],[2 if x in t['walkable'] else 0 for x in range(560)]
-	for c in order([(x['enabledSkill'] ,(x['elementCellId'] if x['enabledSkill'] not in farmer_exception else x['elementCellId']-28)) for x in useful['resources'].values() if (str(x['elementCellId']) in e and x['enabledSkill'] in rsc )],mat,priority):
+	for c in order([(320, 431), (323, 473), (158, 383)],mat,priority):
 		click(c ,offx=e[(s:=str(c))]['xoffset'],offy=e[s]['yoffset'],alt=e[s]['altitude'])
-		if count==7:
-			sleep(3)
 		count,lc=count+3,c
 	return count,lc
 
-def check_inventory(count):
+def check_inventory():
 	if useful['inventory_weight'] / useful['inventory_max']>.9:
 		teleport('koalak')
 		for e in pathfinder(get_current_node(1),collection.nodes.find_one({'mapid':84935175},{'_id':1})['_id']):
 			click(cell:=get_closest(e[0],useful['mypos'],e[1]),direction=e[1])
 			cond_wait(1.5,3,('mapid',useful['mapid'],count,wrapper(click,cell,direction=e[1])))
 		click(330,offy=-20)
-		sleep(2)
+		wait_check_fight(2,3)
 		app.send_keystrokes('{DOWN}')
-		sleep(2)
+		wait_check_fight(2,3)
 		app.send_keystrokes('{ENTER}')
-		sleep(3)
+		wait_check_fight(3,5)
 		click(80,offx=40,offy=-7)
-		sleep(1)
+		wait_check_fight(1,1.5)
 		click(80,offx=-15,offy=-7)
-		sleep(1)
-		app.send_keystrokes('{DOWN}')
-		sleep(1)
-		app.send_keystrokes('{DOWN}')
-		sleep(1)
-		app.send_keystrokes('{ENTER}')
-		sleep(1)
+		wait_check_fight(1,1.5)
+		click(80,offy=16)
+		wait_check_fight(1,1.5)
 		app.send_keystrokes('{VK_ESCAPE}')
 
 def execute(paths_names, rsc=[], priority=[] ,check_archi=True, rotation=-1):
@@ -203,13 +196,22 @@ def execute(paths_names, rsc=[], priority=[] ,check_archi=True, rotation=-1):
 			count=collect(rsc,priority,farmer_exception,out=True)[0]
 			app.send_keystrokes('{VK_SHIFT}')
 			wait_check_fight(7,count)
-			check_inventory(count)
+			check_inventory()
 		rotation-=1
 	print("done all rotations")
-# app.send_keystrokes('{VK_SHIFT}')
-# click(222,-16,-3)
-# execute(paths_names=['icefish','elm','aspen','holy','rice&pandkin'],rsc=['pandkin','silicate','sage','freyesque','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry','Grey Sea Bream'],priority=['elm','aspen','holy','tench','swordfish','icefish','kaliptus','cherry'])
-# Thread(target=sniff, kwargs={'filter':'tcp port 5555 ', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
+
+Thread(target=sniff, kwargs={'filter':'tcp port 5555 ', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
+g=lambda rsc:[s for r in rsc for x in collection.skills.find({'_id':{'$regex': '^%s.*'%(r),'$options':'i'}}) for s in x['skill_id']]
+r=g(['pandkin','silicate','sage','freyesque','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry','Grey Sea Bream'])
+sleep(7)
+collect(r,[],[],e='2565')
+# print(check_adjc([99],mat))
+
+
+
+# execute(paths_names=['icefish','elm','aspen','holy','rice&pandkin'],rsc=['pandkin','silicate','sage','freyesque','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry','Grey Sea Bream'])#,priority=['elm','aspen','holy','tench','swordfish','icefish','kaliptus','cherry'])
+
+
 # sleep(3)
 # while 1:
 	# print(useful['resources'])
