@@ -131,7 +131,6 @@ def set_paths(worldmap=1):
 
 def set_doors_hardcode():
 	from win32api import GetCursorPos as gp
-	from utils import click
 	from json import dump
 	from launch import get_current_node,sniff,Raw,on_receive,on_msg,useful,Thread
 	with open('./assets/Doors.json', 'r', encoding='utf8') as f:
@@ -155,17 +154,17 @@ def set_doors_hardcode():
 				dump(out,f)
 				collection.nodes.update_one({'_id':node[0]},{'$set':{'d':temp}})
 		elif i==' ':
-			input('*****MOVE THE CURSOR TO THE CAVE ENTRANCE AND HIT ENTER*****')
-			l,r,(cpx,cpy),offy=0,0,gp(),15
-			while (cpy:=cpy-offy)>54:
-				l+=1
-				offy=15 if offy==16 else 16
-			while (cpx:=cpx-63)>252:
-				r+=1
-			print('estimated cellid',l*14+r)
-			click(l*14+r)
+			input('*****MOVE THE CURSOR TO THE CAVE ENTERANCE AND HIT ENTER*****')
+			l,r,(cpx,cpy)=0,0,gp()
+			print(cpx,cpy)
+			while (c:=cpx-62)>252:
+				r,cpx=r+1,c
+			while (c:=cpy-16)>54:
+				l,cpy=l+1,c
+			print(l*14+r)
 		else:
 			print('not yet implemented maybe this option will add missing resources')
+
 
 # set_doors_hardcode()
 # create_nodes()

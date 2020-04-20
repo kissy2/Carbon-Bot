@@ -146,7 +146,6 @@ def check_arch(l):
 							f.write('%s : Name : %s , Level : %s , Coord : %s\n'%(strftime("%A, %d %B %Y %H:%M:%S", localtime()),l[i[0]],i[1],c)+r)
 							notify.show_toast(title='ArchMonster Found !',msg='Name : %s\nLevel : %s\nCoord : %s'%(l[i[0]],i[1],c),duration=600,threaded=True)
 
-
 def set_mat(key):
 	if not key:
 		t=get_current_node(2)
@@ -169,7 +168,7 @@ def collect(rsc,priority,farmer_exception,key=None):
 					return t
 				maxi-=t
 			if not maxi:
-				notify.show_toast('Possible Resource Offset Overshoot',f'mapid:{useful["mapid"]}\ncell:{s}')
+				notify.show_toast('Possible Resource Offset Overshoot',f'mapid:{useful["mapid"]}\ncell:{s}',threaded=True)
 	return mat
 
 def check_inventory():
