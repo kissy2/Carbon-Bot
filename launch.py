@@ -109,12 +109,13 @@ def wait_check_fight(tmin,tmax,cond=0):
 	global first_fight
 	sleep(uniform(tmin,tmax))
 	if useful['infight'] and cond!=-1:
-		prev=fight(first_fight)
+		mid=useful['mapid']
+		pos=fight(first_fight)
 		first_fight=False
-		if useful['lifepoints']/useful['maxLifePoints']<.1:
+		if useful['mapid']!=mid:
 			print('fight lost')
 			return -1
-		elif useful['mypos']==prev:
+		elif useful['mypos']==pos:
 			print("fight forced break")
 			return 100
 		print("simple out fight")
@@ -131,7 +132,9 @@ def cond_wait(tmin,tmax,cond):
 			if useful[cond[0]] == cond[1]:
 				cond_wait(tmin,tmax,cond)
 			return True
-		tries+=wait_check_fight(tmin,tmax,cond[2])
+		if (t:=wait_check_fight(tmin,tmax,cond[2]))==-1:
+			return t
+		tries+=t
 
 def check_arch(l):
 	while 1:
@@ -145,6 +148,7 @@ def check_arch(l):
 							f.seek(0)
 							f.write('%s : Name : %s , Level : %s , Coord : %s\n'%(strftime("%A, %d %B %Y %H:%M:%S", localtime()),l[i[0]],i[1],c)+r)
 							notify.show_toast(title='ArchMonster Found !',msg='Name : %s\nLevel : %s\nCoord : %s'%(l[i[0]],i[1],c),duration=600,threaded=True)
+
 
 def set_mat(key):
 	if not key:
@@ -214,7 +218,8 @@ def execute(paths_names, rsc=[], priority=[] ,check_archi=True, rotation=-1):
 					break
 				click(cell:=get_closest(e[0],mat,e[1]),direction=e[1])
 				app.send_keystrokes('{VK_SHIFT}')
-				cond_wait(1.5,3,('mapid',prev,5,wrapper(click,cell,direction=e[1])))	
+				if (mat:=cond_wait(1.5,3,('mapid',prev,5,wrapper(click,cell,direction=e[1]))))==-1:
+					break
 				print("mapchanged",prev,useful['mapid'])
 			if mat !=-1:
 				collect(rsc,priority,farmer_exception)
@@ -225,7 +230,7 @@ def execute(paths_names, rsc=[], priority=[] ,check_archi=True, rotation=-1):
 
 
 execute(paths_names=['icefish','elm','aspen','holy','rice','rye'],
-		rsc=['sage','flax','rye','pandkin','silicate','freyesque','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry','Grey Sea Bream'],
+		rsc=['ginseng','ray','sage','flax','rye','pandkin','silicate','freyesque','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry','Grey Sea Bream'],
 		priority=['elm','aspen,','holy','kaliptus','cherry','tench','swordfish','icefish'])
 
 # print(pathfinder('4397','1665'))
