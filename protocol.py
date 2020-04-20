@@ -215,8 +215,7 @@ def addGameFightCharacterInformations(ans):
 		useful["fight"]["ap"] = ans["stats"]["actionPoints"]
 		useful["fight"]["mp"] = ans["stats"]["movementPoints"]
 		useful["lifepoints"] = ans["stats"]["lifePoints"]
-		if useful["lifepoints"]<100:
-			toaster.show_toast("Possible Fight Lost", "Alert!", threaded=True, duration=150)
+		
 
 	else:
 		useful["fight"]["teamMembers"][id]["status"] = ans["status"]["__type__"]
@@ -381,8 +380,7 @@ def read(type, data: Data):
 			if x!='__type__':
 				useful['fight']['range']+=int(ans["stats"]["range"][x])
 		useful["lifepoints"] = ans["stats"]["lifePoints"]
-		if useful["lifepoints"]<100:
-			toaster.show_toast("Possible Fight Lost", "Alert!", threaded=True, duration=150)
+
 		useful["fight"]["lifepoints"] = ans["stats"]["lifePoints"]
 		useful["fight"]["ap"] = int(ans["stats"]["actionPointsCurrent"])
 		useful["fight"]["mp"] = int(ans["stats"]["movementPointsCurrent"])
@@ -459,8 +457,7 @@ def read(type, data: Data):
 	elif ans["__type__"] == "LifePointsRegenEndMessage":
 		useful["maxLifePoints"] = ans["maxLifePoints"]
 		useful["lifepoints"] = ans["lifePoints"]
-		if useful["lifepoints"]<100:
-			toaster.show_toast("Possible Fight Lost", "Alert!", threaded=True, duration=150)
+
 		useful["fight"]["maxLifePoints"] = ans["maxLifePoints"]
 		useful["fight"]["lifepoints"] = ans["lifePoints"]
 
@@ -663,8 +660,8 @@ def read(type, data: Data):
 	elif ans["__type__"] == "UpdateLifePointsMessage":
 		id = 5658
 		useful["lifepoints"] = ans["lifePoints"]
-		if useful["lifepoints"]<100:
-			toaster.show_toast("Possible Fight Lost", "Alert!", threaded=True, duration=150)
+
+
 		useful["maxLifePoints"] = ans["maxLifePoints"]
 		try:
 			useful["fight"]["lifepoints"] = ans["lifePoints"]
@@ -679,8 +676,7 @@ def read(type, data: Data):
 			useful["mypos"] = ans["disposition"]["cellId"]
 			useful["fight"]["mypos"] = ans["disposition"]["cellId"]
 			useful["lifepoints"] = ans["stats"]["lifePoints"]
-			if useful["lifepoints"]<100:
-				toaster.show_toast("Possible Fight Lost", "Alert!", threaded=True, duration=150)
+			
 			useful["maxLifePoints"] = ans["stats"]["maxLifePoints"]
 			useful["fight"]["lifepoints"] = ans["stats"]["lifePoints"]
 			useful["fight"]["maxLifePoints"] = ans["stats"]["maxLifePoints"]
