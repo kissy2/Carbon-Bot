@@ -8,7 +8,7 @@ notify,first_fight=ToastNotifier(),True
 
 def get_closest(edge,mat,direction):
 	if direction=='d':
-		return edge[0]
+		return edge[randint(0,len(edge)-1)]
 	l,base,done=[useful['mypos']],(28,-28,1,-1,13,14,-13,-14),set()
 	while l:
 		for i in range(8): 
@@ -34,7 +34,7 @@ def wrapper(func, *args, **kwargs):
 
 def teleport(text):
 	app.send_keystrokes('{VK_SHIFT}')
-	click(553,offy=20)
+	click(0,-1000)
 	print("teleport",text)
 	try:
 		call,prev=wrapper(teleport,text),useful['mapid']
@@ -113,7 +113,7 @@ def wait_check_fight(tmin,tmax,cond=0):
 		pos=fight(first_fight)
 		first_fight=False
 		if useful['mapid']!=mid:
-			print('fight lost')
+			notify.show_toast('fight lost')
 			return -1
 		elif useful['mypos']==pos:
 			print("fight forced break")
@@ -149,7 +149,6 @@ def check_arch(l):
 							f.write('%s : Name : %s , Level : %s , Coord : %s\n'%(strftime("%A, %d %B %Y %H:%M:%S", localtime()),l[i[0]],i[1],c)+r)
 							notify.show_toast(title='ArchMonster Found !',msg='Name : %s\nLevel : %s\nCoord : %s'%(l[i[0]],i[1],c),duration=600,threaded=True)
 
-
 def set_mat(key):
 	if not key:
 		t=get_current_node(2)
@@ -175,12 +174,47 @@ def collect(rsc,priority,farmer_exception,key=None):
 				notify.show_toast('Possible Resource Offset Overshoot',f'mapid:{useful["mapid"]}\ncell:{s}',threaded=True)
 	return mat
 
+def get_closest_zaap(mapid):
+	n,m=collection.nodes.find_one({'mapid':mapid},{'coord':1}),1000
+	for x in collection.zaaps.find({}):
+		c=x['_id'].split(',')
+		if (calc:=abs(int(c[0])-n['coord'][0])+abs(int(c[1])-n['coord'][1]))<m:
+			name,m=x['name'],calc 	
+	teleport(name)
+	return n['_id']
+
+def move(nid,zaap=False,sneaky=None):
+	if zaap:
+		nid=get_closest_zaap(nid)
+	for e in pathfinder(get_current_node(1),nid):
+		click(cell:=get_closest(e[0],set_mat(e[2])[1],e[1]),direction=e[1])
+		cond_wait(1.5,3,('mapid',useful['mapid'],-1,wrapper(click,cell,direction=e[1])))
+		if sneaky in useful['map_npc']:
+			print("sneaky bro ?")
+			break
+	return nid
+
+def treasure_hunt():
+	g=lambda x,y,d,ofs: [x+ofs,y] if d==0 else [x-ofs,y] if d==4 else [x,y+ofs] if d==2 else [x,y-ofs]
+	last=move(useful['hunt']['startMapId'],True)
+	for _ in range(useful['hunt']['checkPointTotal']):
+		for j in range(useful['hunt']['totalStepCount']):
+			current_node,sneaky=collection.nodes.find_one({'_id':last},{'coord':1,'_id':0})['coord'],None
+			if 'poiLabelId' in useful['hunt']['currentstep']:
+				for x in collection.treasure.find_one({'_id':f'{current_node[0]},{current_node[1]}'},{(s:=str(useful['hunt']['currentstep']['direction'])):1,'_id':0})[s]:
+					if x[0]==useful['hunt']['currentstep']['poiLabelId']:
+						new_coord=g(current_node[0] ,current_node[1],useful['hunt']['currentstep']['direction'],x[1])
+						break
+				else:
+					notify.show_toast('tnikna')
+			else:
+				new_coord,sneaky=g(current_node[0] ,current_node[1],useful['hunt']['currentstep']['direction'],10),useful['hunt']['currentstep']['npcId']
+			move(collection.nodes.find_one({'worldmap':1,'coord':new_coord},{'_id':1})['_id'],sneaky=sneaky)
+
+
 def check_inventory():
 	if useful['inventory_weight'] / useful['inventory_max']>.9:
-		teleport('koalak')
-		for e in pathfinder(get_current_node(1),collection.nodes.find_one({'mapid':84935175},{'_id':1})['_id']):
-			click(cell:=get_closest(e[0],set_mat(e[2])[1],e[1]),direction=e[1])
-			cond_wait(1.5,3,('mapid',useful['mapid'],-1,wrapper(click,cell,direction=e[1])))
+		move(84935175,True)
 		click(330,offy=-20)
 		sleep(2)
 		app.send_keystrokes('{DOWN}')
@@ -190,8 +224,6 @@ def check_inventory():
 		click(80,offx=40,offy=-7)
 		sleep(1)
 		click(80,offx=-15,offy=-7)
-		sleep(1)
-		app.send_keystrokes('{DOWN}')
 		sleep(1)
 		app.send_keystrokes('{DOWN}')
 		sleep(1)
@@ -223,16 +255,12 @@ def execute(paths_names, rsc=[], priority=[] ,check_archi=True, rotation=-1):
 				print("mapchanged",prev,useful['mapid'])
 			if mat !=-1:
 				collect(rsc,priority,farmer_exception)
-				wait_check_fight(4,5)
-				check_inventory()
+			wait_check_fight(4,5)
+			check_inventory()
 		rotation-=1
 	print("done all rotations")
 
+# execute(paths_names=['icefish','elm','aspen'],
+# 		rsc=['rice','ray','sage','flax','rye','pandkin','silicate','freyesque','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry'],
+# 		priority=['elm','aspen,','holy','kaliptus','cherry','tench','swordfish','icefish'])
 
-execute(paths_names=['icefish','elm','aspen','holy','rice','rye'],
-		rsc=['ginseng','ray','sage','flax','rye','pandkin','silicate','freyesque','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry','Grey Sea Bream'],
-		priority=['elm','aspen,','holy','kaliptus','cherry','tench','swordfish','icefish'])
-
-# print(pathfinder('4397','1665'))
-# app.send_keystrokes('{VK_SHIFT}')
-# click(148,2,-24)

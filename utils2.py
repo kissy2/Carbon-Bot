@@ -132,7 +132,7 @@ def set_paths(worldmap=1):
 def set_doors_hardcode():
 	from win32api import GetCursorPos as gp
 	from json import dump
-	from launch import get_current_node,sniff,Raw,on_receive,on_msg,useful,Thread
+	from launch import get_current_node,sniff,Raw,on_receive,on_msg,useful,Thread,click
 	with open('./assets/Doors.json', 'r', encoding='utf8') as f:
 		out=load(f)
 		for x in out:
@@ -140,33 +140,39 @@ def set_doors_hardcode():
 			for k,v in x['d'].items():
 				temp[t]=temp[t]+[int(k)] if (t:=get_current_node(1,v[0],v[1])) in temp else [int(k)]
 			collection.nodes.update_one({'_id':get_current_node(1,x['mapid'],x['pos'])},{'$set':{'d':temp}})
-	# Thread(target=sniff, kwargs={'filter':'tcp port 5555', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
+	Thread(target=sniff, kwargs={'filter':'tcp port 5555', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
 	while 1:
-		if (i:=input('*****HIT ENTER TO LINK DOORS _OR_ SPACE ENTER TO LINK CAVES*****'))=='':
+		if (i:=input('1 - LINK DOORS\n2 - LINK CAVES'))=='1':
+			temp,temp1,node,pos,mapid={},{},get_current_node(3),useful['mypos'],useful['mapid']
+			for x in node[1]:
+				input(f'Move to the next map that link the Door at cell {x} and hit ENTER')
+				temp[tid]= temp[tid]+[int(x)] if (tid:=get_current_node(1)) in temp else [int(x)]
+				temp1[x]=(useful['mapid'],useful['mypos'])
+			out.append({'mapid':mapid,'pos':pos,'d':temp1})
 			with open('./assets/Doors.json', 'w', encoding='utf8') as f:
-				temp,temp1,node,pos,mapid={},{},get_current_node(3),useful['mypos'],useful['mapid']
-				for x in node[1]:
-					input(f'Move to the next map that link the Door at cell {x} and hit ENTER')
-					temp[tid]= temp[tid]+[int(x)] if (tid:=get_current_node(1)) in temp else [int(x)]
-					temp1[x]=(useful['mapid'],useful['mypos'])
-					print('DONE!\n')
-				out.append({'mapid':mapid,'pos':pos,'d':temp1})
 				dump(out,f)
-				collection.nodes.update_one({'_id':node[0]},{'$set':{'d':temp}})
-		elif i==' ':
-			input('*****MOVE THE CURSOR TO THE CAVE ENTERANCE AND HIT ENTER*****')
+			collection.nodes.update_one({'_id':node[0]},{'$set':{'d':temp}})
+		elif i=='2':
+			input('*****MOVE THE CURSOR TO THE CAVE ENTRANCE AND HIT ENTER*****')
+			nid,mapid,pos=get_current_node(1),useful['mapid'],useful['mypos']
 			l,r,(cpx,cpy)=0,0,gp()
-			print(cpx,cpy)
 			while (c:=cpx-62)>252:
 				r,cpx=r+1,c
 			while (c:=cpy-16)>54:
 				l,cpy=l+1,c
-			print(l*14+r)
+			click(cell:=l*14+r)
+			if input(f'CLICKING ON THE ESTIMATED CELL {cell} WHEN THE MAP IS CHANGED HIT SPACE ENTER TO SAVE IT ELSE ENTER TO TRY AGAIN')==' ':
+				collection.nodes.update_one({'_id':nid},{'$set':{'d':{get_current_node(1):[cell]}}})
+				out.append({'mapid':mapid,'pos':pos,'d':{str(cell):(useful['mapid'],useful['mypos'])}})
+				with open('./assets/Doors.json', 'w', encoding='utf8') as f:
+					dump(out,f)
+			else:
+				print("ABORT")
 		else:
 			print('not yet implemented maybe this option will add missing resources')
 
 
-# set_doors_hardcode()
+set_doors_hardcode()
 # create_nodes()
 # link_nodes()
 # set_paths()

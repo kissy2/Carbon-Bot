@@ -7,8 +7,7 @@ from pywinauto.application import Application
 from pywinauto.findwindows import find_window
 wait,collection,app=lambda x,y:sleep(uniform(x,y)),MongoClient('mongodb+srv://carbon:bot@carbon-9bthr.gcp.mongodb.net/test?retryWrites=true&w=majority').carbon_db,Application().connect(handle=find_window(title_re='Unfriendly')).top_window()
 app.move_window(x=-10, y=0, width=1365, height=768, repaint=True)
-app.minimize()
-
+# app.minimize()
 
 def shortest(heap,target,c=True):
 	m,ret,i,index,decal=10000,[],0,[],0
@@ -56,14 +55,13 @@ def pathfinder(start,target,shuffle=True,multipath=False):
 	return []
 
 def click(cellid,offx=0,offy=0,alt=0,direction=None):
-	limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+7) if odd else (x[0],x[1]+20) ,'n':lambda x,odd:(x[0],x[1]-21) if odd else (x[0],x[1]-8),'w':lambda x,odd:(x[0]-45,x[1]) if odd else (x[0]-18,x[1]),'e':lambda x,odd:(x[0]+18,x[1]) if odd else (x[0]+45,x[1]),'d': lambda x,odd:(x[0],x[1])},257,16,cellid//14,cellid % 14
-	print("click",cellid,offx,offy,alt,(x+floor(row*61.8)+ceil(offx*2/3), y+floor(15.6*line)+offy-8*alt+38),direction)
+	limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+11) if odd else (x[0],x[1]+24) ,'n':lambda x,odd:(x[0],x[1]-21) if odd else (x[0],x[1]-8),'w':lambda x,odd:(x[0]-45,x[1]) if odd else (x[0]-18,x[1]),'e':lambda x,odd:(x[0]+18,x[1]) if odd else (x[0]+45,x[1]),'d': lambda x,odd:(x[0],x[1])},248,14,cellid//14,cellid % 14
 	if odd:=line%2:
-		x+=30
+		x+=31
 	if direction:
 		x,y=limit[direction]((x,y),odd)
-	print("click",cellid,offx,offy,alt,(x+floor(row*61.8)+ceil(offx*2/3), y+floor(15.6*line)+offy-8*alt+38),direction)
-	app.click(coords=(x+floor(row*61.8)+ceil(offx*2/3), y+floor(15.6*line)+offy-8*alt))
+	print("click",cellid,offx,offy,alt,direction,(x+ceil(row*62.4)+floor(offx*.687), y+floor(15.6*line)+ceil(offy*.6)-8*alt))
+	app.click(coords=(x+ceil(row*62.4)+floor(offx*.687), y+floor(15.5*line)+ceil(offy*.6)-8*alt))
 
 def switch_coord(c):
 	i=0
@@ -102,6 +100,7 @@ def insight(x0,y0,x1,y1,mat):
 		n -= 1
 	return True
 
+
 def get_current_node(cond=0,mapid=None,pos=None):
 	projec,(pos,mapid)={'walkable':1},(pos,mapid)if pos else (useful['mypos'],useful['mapid'])
 	if not cond:
@@ -134,8 +133,8 @@ def get_path(x0,y0,x1,y1,mat,revert=True):
 
 def get_closest(x0,y0,check_insight=False):#check insight not implemented
 	m=600
-	for x in useful['fight']['enemyteamMembers']:
-		x1,y1=switch_coord(x['cellid']):
+	for x in useful['fight']['enemyteamMembers'].values():
+		x1,y1=switch_coord(x['cellid'])
 		if (calc:=abs(x0-x1)+abs(y0-y1))<m:
 			m,c=calc,x['cellid']
 	return c
@@ -187,10 +186,10 @@ def fight(first_fight=False):
 	app.send_keystrokes('{VK_SHIFT}')
 	if first_fight:
 		click(557,offy=20,offx=15)
-		wait(.5,.75)
-		click(557,offy=90)
-		wait(.5,.75)
-		click(557,offy=90,offx=15)
+		wait(.25,.75)
+		app.send_keystrokes('+{(} ')
+		wait(.5,1)
+		app.send_keystrokes('//s{ENTER}')	
 	wait(1.5,2)
 	m,mat=600,get_current_node()
 	for c in useful['fight']['positionsForDefenders'] if useful['fight']['defenderId'] == useful['contextualId'] else useful['fight']['positionsForChallengers']:
@@ -201,11 +200,13 @@ def fight(first_fight=False):
 	wait(.5,.75)
 	spells,buffs = {'1': {'range': (6, 10, True),'ap':4 ,'cpt' : 1 ,'recast': 3, 'fc': 0, 'sight': True,'inline': False}, '2': {'range': (1, 8, True),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True}, '3': {'range': (5, 10, True),'ap':3, 'cpt' : 1 , 'recast': 3, 'fc': 1, 'sight': True, 'inline': False}, '4': {'range': (1, 10, True),'ap':2, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}, '5': {'range': (1, 12, True),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}, '6': {'range': (1, 7, True),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': False, 'inline': False}},{'1' : {'ap':3, 'recast':5,'fc':0},'2' : {'ap':3, 'recast':6,'fc':0},'3' : {'ap':2, 'recast':5,'fc':0}}
 	while useful['infight']:
-		click(557,offy=45)
+		app.send_keystrokes('{F1}')
 		while 'turn' in useful['fight'].keys() and not useful['fight']['turn']:
 			wait(1.5,3)
 		spells,buffs=check_spells(spells,buffs,mat)
 	prev=useful['mypos']
-	wait(2.5,4)
+	wait(2.5,3.5)
+	app.send_keystrokes('{ENTER}')
+	wait(0.5,1)
 	app.send_keystrokes('{ENTER}')
 	return prev

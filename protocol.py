@@ -95,6 +95,10 @@ def addMapComplementaryInformationsDataMessage(ans):
 			useful["map_npc"][actor["contextualId"]] = {}
 			useful["map_npc"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
 
+		if actor["__type__"] == "GameRolePlayTreasureHintInformations":
+			useful["map_npc"][actor["npcId"]] = {}
+			useful["map_npc"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
+
 		if actor["__type__"] == "GameRolePlayCharacterInformations":
 			if actor["accountId"] == useful["accountId"]:
 				useful["mypos"] = actor["disposition"]["cellId"]
@@ -484,14 +488,13 @@ def read(type, data: Data):
 		#     my turn i think
 		pass
 
+
 	elif ans["__type__"] == "TreasureHuntDigRequestAnswerMessage":
 		useful['hunt']['questType'] = ans['questType']
 		useful['hunt']['result'] = ans['result']
-	#     Result 3 = fail, 1 first?, okay?
 
 
 	elif ans["__type__"] == "TreasureHuntMessage":
-		# direction. Up: 6, Left: 4
 		useful['hunt'] = {}
 		useful['hunt']['questType'] = ans['questType']
 		useful['hunt']['startMapId'] = ans['startMapId']
