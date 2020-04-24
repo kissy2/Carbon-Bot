@@ -1,5 +1,5 @@
 from time import localtime,strftime
-from utils import fight,get_current_node,click,sleep,switch_coord,get_path,uniform,sample,pathfinder,shortest,collection,app
+from utils import fight,get_current_node,click,sleep,switch_coord,get_path,uniform,sample,pathfinder,shortest,collection,app,window,arg,logging
 from random import randint
 from start import sniff,Raw,on_receive,on_msg,useful
 from threading import Thread
@@ -7,25 +7,28 @@ from win10toast import ToastNotifier
 notify,first_fight=ToastNotifier(),True
 
 def get_closest(edge,mat,direction):
-	if direction=='d':
-		return edge[randint(0,len(edge)-1)]
-	l,base,done=[useful['mypos']],(28,-28,1,-1,13,14,-13,-14),set()
-	while l:
-		for i in range(8): 
-			if (ooe:=l[0]//14%2) and l[0]%14==13 and i in (5,6) or not ooe and not l[0]%14 and i in (4,7) or not l[0]%14 and i==3 or l[0]%14==13 and i==2:
-				continue  
-			next_cell=(base[i]+1 if ooe and i in (4,5) else base[i] -1 if not ooe and i>5 else base[i])+l[0]
-			if next_cell>-1 and next_cell<560  and next_cell not in l and next_cell not in done and mat[next_cell]==2:
-				if next_cell in edge:
-					ret,length,(d,calc)=[],-1,(2,next_cell%14) if direction in ('n','s') else (3,next_cell//14)
-					for x in edge:
-						if abs(calc-x%14 if direction in ('n','s') else calc-x//14)<d:
-							ret.append(x)
-							length+=1
-					return ret[randint(0,length)]
-				l.append(next_cell)
-		done.add(l[0])
-		l.pop(0)
+	try:
+		if direction=='d':
+			return edge[randint(0,len(edge)-1)]
+		l,base,done,ret=[useful['mypos']],(28,-28,1,-1,13,14,-13,-14),set(),[]
+		while l:
+			for i in range(8): 
+				if (ooe:=l[0]//14%2) and l[0]%14==13 and i in (5,6) or not ooe and not l[0]%14 and i in (4,7) or not l[0]%14 and i==3 or l[0]%14==13 and i==2:
+					continue  
+				next_cell=(base[i]+1 if ooe and i in (4,5) else base[i] -1 if not ooe and i>5 else base[i])+l[0]
+				if next_cell>-1 and next_cell<560  and next_cell not in l and next_cell not in done and mat[next_cell]==2:
+					if next_cell in edge:
+						ret.append(next_cell)
+						if len(ret)>=min(3,len(edge)):
+							return ret[randint(0,len(ret)-1)]						
+					l.append(next_cell)
+			done.add(l[0])
+			l.pop(0)
+		print('Critical in get_closest (cells) out empty')
+		logging.critical(f'out empty in get_closest current pos {useful["mypos"]}')
+	except:
+		print('Error in check_spells')
+		logging.error(f'Error in get_closest direction : {direction}\nedge : {edge}\nmat : {mat}',exc_info=1)
 
 def wrapper(func, *args, **kwargs):
 	def wrapped():
@@ -35,110 +38,144 @@ def wrapper(func, *args, **kwargs):
 def teleport(text):
 	app.send_keystrokes('{VK_SHIFT}')
 	click(0,-1000)
-	print("teleport",text)
+	logging.info(f'Teleporting to {text}')
 	try:
 		call,prev=wrapper(teleport,text),useful['mapid']
 		app.send_keystrokes('h')
-		if cond_wait(1.5,2.5,('mapid',prev,5,call)):
+		if cond_wait(1.5,2.5,['mapid',prev,5,call]):
 			return
-		print("enter haven bag",useful['mapid'])
+		logging.info(f'Enter Havenbag ,{useful["mapid"]} is it though ?')
 		click(173, offx=-10, offy=-10)
 		sleep(uniform(2.5,3.5))
 		click(134,offy=-10)
-		sleep(uniform(2,2.5))
-		app.send_keystrokes(text+'{ENTER}', with_spaces=True)
-		if cond_wait(3,5,('mapid',162793472,5,call)):
+		sleep(.25)
+		app.send_keystrokes(text+'~', with_spaces=True)
+		if cond_wait(3,5,['mapid',162793472,5,call]):
 			return
 	except RuntimeError:
+		logging.error('RuntimeError in teleport')
 		sleep(uniform(3,5))
 		teleport(text)
-	print("done teleport")
+	logging.info(f'Done teleporting to {text} current mapid is {useful["mapid"]}')
 
 
 def check_adjc(l,mat,pos):
-	base,temp=(13,14,-13,-14,0),[]
-	while l:
-		for i in range(5): 
-			if (ooe:=l[0]//14%2) and l[0]%14==13 and i in (1,2) or not ooe and not l[0]%14 and i in (0,3):
-				continue
-			next_cell=(base[i]+1 if ooe and i<2 else base[i] -1 if not ooe and (i>1 and i<4) else base[i])+l[0]
-			if next_cell>-1 and next_cell<560:
-				if mat[next_cell]==2:
-					temp.append(next_cell)
-				elif next_cell not in l:
-					l.append(next_cell)
-		if temp:
-			(x0,y0),m=switch_coord(pos),600
-			for x in temp:
-				(x1,y1)=switch_coord(x)
-				if (dist:=abs(x0-x1)+abs(y0-y1))<m:
-					c=x
-			return c
-		l.pop(0)
+	try:
+		base,temp=(13,14,-13,-14,0),[]
+		while l:
+			for i in range(5): 
+				if (ooe:=l[0]//14%2) and l[0]%14==13 and i in (1,2) or not ooe and not l[0]%14 and i in (0,3):
+					continue
+				next_cell=(base[i]+1 if ooe and i<2 else base[i] -1 if not ooe and (i>1 and i<4) else base[i])+l[0]
+				if next_cell>-1 and next_cell<560:
+					if mat[next_cell]==2:
+						temp.append(next_cell)
+					elif next_cell not in l:
+						l.append(next_cell)
+			if temp:
+				(x0,y0),m=switch_coord(pos),600
+				for x in temp:
+					(x1,y1)=switch_coord(x)
+					if (dist:=abs(x0-x1)+abs(y0-y1))<m:
+						c=x
+				return c
+			l.pop(0)
+	except:
+		print('Error in check_adjc')
+		logging.error(f'Eroor in check_adjc pos : {pos}\nlist : {l}\nmat : {mat}',exc_info=1)
 
 def sub_order(li,mat,pos):
-	if (l:=len(li))<2:
-		return li,(li[0][0] if l else pos)
-	ref,l,ret,length={},[],[],0
-	for x in li:
-		if (a:=check_adjc([x[0]],mat,pos)):
-			if a not in l:
-				l.append(a)
-				length+=1
-			ref[a]=ref[a]+[x] if a in ref else [x]
-	while length:
-		m=600
-		for i in range(length):
-			(x0,y0),(x1,y1)=switch_coord(pos),switch_coord(l[i])
-			calc=get_path(x0,y0,x1,y1,mat,revert=False)
-			if calc<m:
-				index,m=i,calc
-		length,pos,ret=length-1,l[index],ret+[x for x in ref[l[index]]]
-		l.pop(index)
-	return ret,pos
+	try:
+		if (l:=len(li))<2:
+			return li,(li[0][0] if l else pos)
+		ref,l,ret,length={},[],[],0
+		for x in li:
+			if (a:=check_adjc([x[0]],mat,pos)):
+				if a not in l:
+					l.append(a)
+					length+=1
+				ref[a]=ref[a]+[x] if a in ref else [x]
+		while length:
+			m=600
+			for i in range(length):
+				(x0,y0),(x1,y1)=switch_coord(pos),switch_coord(l[i])
+				calc=get_path(x0,y0,x1,y1,mat,revert=False)
+				if calc<m:
+					index,m=i,calc
+			length,pos,ret=length-1,l[index],ret+[x for x in ref[l[index]]]
+			l.pop(index)
+		return ret,pos
+	except:
+		logging.error(f'Eroor in sub_order pos : {pos}\nlist : {li}\nmat : {mat}',exc_info=1)
 
 def order(li,mat,priority):
-	ret,pos=[],useful['mypos']
-	for x in priority:
-		if top:=[(y[1],y[2]) for y in li if y[0]==x]:
-			t=sub_order(top,mat,pos)
-			ret,pos=ret+t[0],t[1]
-	return ret+sub_order([(x[1],x[2]) for x in li if (x[1],x[2]) not in ret],mat,pos)[0]
+	try:
+		ret,pos=[],useful['mypos']
+		for x in priority:
+			if top:=[(y[1],y[2]) for y in li if y[0]==x]:
+				t=sub_order(top,mat,pos)
+				ret,pos=ret+t[0],t[1]
+		return ret+sub_order([(x[1],x[2]) for x in li if (x[1],x[2]) not in ret],mat,pos)[0]
+	except:
+		print('Error in order')
+		logging.error(f'Eroor in order list : {li}\npriority : {priority}\nmat : {mat}',exc_info=1)
 
 def wait_check_fight(tmin,tmax,cond=0):
-	global first_fight
-	sleep(uniform(tmin,tmax))
-	if useful['infight'] and cond!=-1:
-		mid=useful['mapid']
-		pos=fight(first_fight)
-		first_fight=False
-		if useful['mapid']!=mid:
-			notify.show_toast('fight lost')
-			return -1
-		elif useful['mypos']==pos:
-			print("fight forced break")
-			return 100
-		print("simple out fight")
-	return 1
+	try:
+		global first_fight
+		sleep(uniform(tmin,tmax))
+		if useful['infight'] and cond!=-1:
+			app.send_keystrokes('{VK_SHIFT}')
+			pos=fight(first_fight)
+			app.send_keystrokes('{VK_SHIFT DOWN}')
+			first_fight=False
+			if not useful['fight']['alive']:
+				logging.critical('Fight Lost')
+				sleep(30)
+				return -1
+			elif useful['mypos']==pos:
+				logging.info('Forced break after fight : character did not move')
+				return 100
+			logging.info('simple fight ended')
+		return 1
+	except:
+		print('Error in wait_check_fight')
+		logging.error(f'Eroor in wait_check_fight {tmin} {tmax} {cond}',exc_info=1)
 
 def cond_wait(tmin,tmax,cond):
-	tries=0
-	while useful[cond[0]] == cond[1]:
-		if cond[2]!=-1 and tries >= cond[2]:
-			print("forced break after timeout",useful['mapid'],cond[1],useful[cond[0]] == cond[1])
-			app.send_keystrokes('{VK_SHIFT}')
-			cond[3]()
-			sleep(2)
-			if useful[cond[0]] == cond[1]:
-				cond_wait(tmin,tmax,cond)
-			return True
-		if (t:=wait_check_fight(tmin,tmax,cond[2]))==-1:
-			return t
-		tries+=t
+	try:
+		tries=0
+		while useful[cond[0]] == cond[1]:
+			if cond[2]!=-1 and tries >= cond[2]:
+				logging.info(f'Forced break after timeout , {useful["mapid"]}')
+				app.send_keystrokes('{VK_SHIFT}')
+				cond[3]()
+				sleep(2)
+				if useful[cond[0]] == cond[1]:
+					cond[2]-=1
+					if not cond[2]:
+						logging.critical(f'Break from path : something bad happened here {useful["mapid"]}')
+						return -1
+					return cond_wait(tmin,tmax,cond)
+				return True	
+			if window.name and window.name[0:5]=='Dofus':
+				logging.critical('Disconnected : Trying to reconnect every 2 minutes')
+				sleep(120)
+				app.send_keystrokes('~')
+				sleep(120)
+				app.send_keystrokes('~')
+				sleep(120)
+				return -1
+			elif (t:=wait_check_fight(tmin,tmax,cond[2]))==-1:
+				return t
+			tries+=t
+	except:
+		print('Error in cond_wait')
+		logging.error(f'Eroor in cond_wait {tmin} {tmax} {cond}',exc_info=1)
 
 def check_arch(l):
 	while 1:
-		cond_wait(2,3,('mapid',useful['mapid'],-1))
+		cond_wait(2,3,['mapid',useful['mapid'],-1])
 		for m in useful["map_mobs"].items():
 			if 'info' in m[1].keys():
 				for i in m[1]['info']:
@@ -150,29 +187,36 @@ def check_arch(l):
 							notify.show_toast(title='ArchMonster Found !',msg='Name : %s\nLevel : %s\nCoord : %s'%(l[i[0]],i[1],c),duration=600,threaded=True)
 
 def set_mat(key):
-	if not key:
-		t=get_current_node(2)
-	else:
-		t=collection.nodes.find_one({'_id':key},{'interactives':1,'walkable':1,'_id':0})
-	return t['interactives'],[2 if x in t['walkable'] else 0 for x in range(560)]
+	try:
+		if not key:
+			t=get_current_node(2)
+		else:
+			t=collection.nodes.find_one({'_id':key},{'interactives':1,'walkable':1,'_id':0})
+		return t['interactives'],[2 if x in t['walkable'] else 0 for x in range(560)]
+	except:
+		print('Error in set_mat')
+		logging.error(f'Eroor in set_mat the key was : {key}',exc_info=1)
 
-def collect(rsc,priority,farmer_exception,key=None):
-	e,mat=set_mat(key)
-	app.send_keystrokes('{VK_SHIFT DOWN}')
-	for c,k in order([(x['enabledSkill'] ,x['elementCellId'],k) for k,x in useful['resources'].items() if (str(x['elementCellId']) in e and x['enabledSkill'] in rsc )],mat,priority):
-		if k in useful['resources']:
-			click(c if useful['resources'][k]['enabledSkill'] not in farmer_exception else c-28 ,e[(s:=str(c))]['xoffset'],e[s]['yoffset'],e[s]['altitude'])
-			maxi=10
-			while k in useful['resources'] and maxi:
-				if (t:=wait_check_fight(.5,1))==100:
-					app.send_keystrokes('{VK_SHIFT DOWN}')
-					break
-				elif t==-1:
-					return t
-				maxi-=t
-			if not maxi:
-				notify.show_toast('Possible Resource Offset Overshoot',f'mapid:{useful["mapid"]}\ncell:{s}',threaded=True)
-	return mat
+def collect(rsc,priority,exceptions,key=None):
+	try:
+		e,mat=set_mat(key)
+		app.send_keystrokes('{VK_SHIFT DOWN}')
+		for c,k in order([(x['enabledSkill'] ,x['elementCellId'],k) for k,x in useful['resources'].items() if (str(x['elementCellId']) in e and x['enabledSkill'] in rsc )],mat,priority):
+			if k in useful['resources']:
+				maxi,offx,offy=10,e[(s:=str(c))]['xoffset'],e[s]['yoffset']
+				if (t:=useful['resources'][k]['enabledSkill']) in exceptions:
+					offx,offy=offx+exceptions[t][0],offy+exceptions[t][1]
+				click(c, offx, offy, e[s]['altitude'])
+				while k in useful['resources'] and maxi:
+					if (t:=wait_check_fight(.5,1))==100:
+						break
+					elif t==-1:
+						return t
+					maxi-=t
+		return mat
+	except:
+		print('Error in collect')
+		logging.error(f'Eroor in collect rsc : {rsc}\nkey : {key}\npriority : {priority}\nexceptions : {exceptions}\nuseful : {useful}',exc_info=1)
 
 def get_closest_zaap(mapid):
 	n,m=collection.nodes.find_one({'mapid':mapid},{'coord':1}),1000
@@ -188,7 +232,7 @@ def move(nid,zaap=False,sneaky=None):
 		nid=get_closest_zaap(nid)
 	for e in pathfinder(get_current_node(1),nid):
 		click(cell:=get_closest(e[0],set_mat(e[2])[1],e[1]),direction=e[1])
-		cond_wait(1.5,3,('mapid',useful['mapid'],-1,wrapper(click,cell,direction=e[1])))
+		cond_wait(2,2.5,['mapid',useful['mapid'],4,wrapper(click,cell,direction=e[1])])
 		if sneaky in useful['map_npc']:
 			print("sneaky bro ?")
 			break
@@ -214,12 +258,13 @@ def treasure_hunt():
 
 def check_inventory():
 	if useful['inventory_weight'] / useful['inventory_max']>.9:
+		logging.info(f'Inventory is full {useful["inventory_weight"]}')
 		move(84935175,True)
 		click(330,offy=-20)
 		sleep(2)
 		app.send_keystrokes('{DOWN}')
 		sleep(2)
-		app.send_keystrokes('{ENTER}')
+		app.send_keystrokes('~')
 		sleep(3)
 		click(80,offx=40,offy=-7)
 		sleep(1)
@@ -227,40 +272,62 @@ def check_inventory():
 		sleep(1)
 		app.send_keystrokes('{DOWN}')
 		sleep(1)
-		app.send_keystrokes('{ENTER}')
+		app.send_keystrokes('~')
 		sleep(1)
 		app.send_keystrokes('{VK_ESCAPE}')
+		logging.info(f'Done emptying inventory {useful["inventory_weight"]}')
 
 def execute(paths_names, rsc=[], priority=[] ,check_archi=True, rotation=-1):
-	Thread(target=sniff, kwargs={'filter':'ip host 172.65.232.71 and tcp port 5555', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
-	# cond_wait(5,10,('lifepoints',1,20,wrapper(notify.show_toast,title='Script Eroor',msg='Could Not Hook Game Process',duration=1000)))
-	g=lambda rsc:[s for r in rsc for x in collection.skills.find({'_id':{'$regex': '^%s.*'%(r),'$options':'i'}}) for s in x['skill_id']]
-	paths,rsc,priority,farmer_exception=list(collection.paths.find({'$or':[{'_id':{'$regex':f'.*{x}.*','$options':'i'}} for x in paths_names]},{'zaap':1,'nodes':1})),set(g(rsc)),g(priority),{45,296,58,308,57,341,159,52,54,191,50,46,53,307}
-	if (l:=len(paths)) and check_archi:
-		Thread(target=check_arch,args=[{x['raceid']:x['_id'] for x in collection.archmonsters.find({})}]).start()
-	while rotation:
-		for p in sample(paths,l):
-			teleport(collection.zaaps.find_one({'_id':p['zaap']},{'name':1,'_id':0})['name'])
-			p,path=[get_current_node(1)]+p['nodes'],[]
-			for s in range(len(p)-1):
-					path+=pathfinder(p[s],p[s+1])
-			for e in path:
-				prev=useful['mapid']
-				if (mat:=collect(rsc,priority,farmer_exception,e[2]))==-1:
-					break
-				click(cell:=get_closest(e[0],mat,e[1]),direction=e[1])
-				app.send_keystrokes('{VK_SHIFT}')
-				if (mat:=cond_wait(1.5,3,('mapid',prev,5,wrapper(click,cell,direction=e[1]))))==-1:
-					break
-				print("mapchanged",prev,useful['mapid'])
-			if mat !=-1:
-				collect(rsc,priority,farmer_exception)
-			wait_check_fight(4,5)
-			check_inventory()
-		rotation-=1
-	print("done all rotations")
+	try:
+		logging.info('CARBON BOT IS LAUNCHED')
+		Thread(target=sniff, kwargs={'filter':f'ip host {collection.servers.find_one({"_id":arg["server"]},{"_id":0})["ip"]} and tcp port {arg["port"]}', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
+		# cond_wait(5,10,('lifepoints',1,20,wrapper(notify.show_toast,title='Script Eroor',msg='Could Not Hook Game Process',duration=1000)))
+		g=lambda rsc:[s for r in rsc for x in collection.skills.find({'_id':{'$regex': '^%s.*'%(r),'$options':'i'}}) for s in x['skill_id']]
+		paths,rsc,priority,exceptions=list(collection.paths.find({'$or':[{'_id':{'$regex':f'.*{x}.*','$options':'i'}} for x in paths_names]},{'zaap':1,'nodes':1})),set(g(rsc)),g(priority),{x['_id']:[x['offx'],x['offy']] for x in collection.exceptions.find({},{'offx':1,'offy':1})}
+		if (l:=len(paths)) and check_archi:
+			Thread(target=check_arch,args=[{x['raceid']:x['_id'] for x in collection.archmonsters.find({})}]).start()
+		while rotation:
+			for p in sample(paths,l):
+				teleport(collection.zaaps.find_one({'_id':p['zaap']},{'name':1,'_id':0})['name'])
+				p,path=[get_current_node(1)]+p['nodes'],[]
+				for s in range(len(p)-1):
+						path+=pathfinder(p[s],p[s+1])
+				for e in path:
+					prev=useful['mapid']
+					if (mat:=collect(rsc,priority,exceptions,e[2]))==-1:
+						break
+					logging.info(f'preclick get_closest args current node : {e[2]} edges : {e[0]}\nmat : {mat}\ndirection : {e[1]}')
+					cell=get_closest(e[0],mat,e[1])
+					click(cell,direction=e[1])
+					logging.info(f'get_closest return is {cell}')
+					if (mat:=cond_wait(2,2.5,['mapid',prev,4,wrapper(click,cell,direction=e[1])]))==-1:
+						break
+					logging.info(f'map changed from {prev} to {useful["mapid"]}')
+				if mat !=-1:
+					collect(rsc,priority,exceptions)
+					wait_check_fight(4,5)
+				check_inventory()
+			rotation-=1
+		print("Done all rotations with success")
+	except:
+		print("An Error Occured in Excecute Check log file!!!!")
+		logging.error(f'Error in execute but why',exc_info=1)
 
-# execute(paths_names=['icefish','elm','aspen'],
-# 		rsc=['rice','ray','sage','flax','rye','pandkin','silicate','freyesque','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry'],
-# 		priority=['elm','aspen,','holy','kaliptus','cherry','tench','swordfish','icefish'])
 
+execute(paths_names=['icefish','aspen','elm','holy','rice','rye'],
+		rsc=['nettle','ginseng','belladonna','rice','ray','sage','flax','rye','pandkin','silicate','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry'],
+		priority=['elm','aspen,','holy','kaliptus','cherry','tench','swordfish','icefish'])
+
+# h=pathfinder('9334','9346')
+# print([x[1] for x in h])
+# for x in h:
+# 	print(x[0])
+# Thread(target=sniff, kwargs={'filter':f'ip host {collection.servers.find_one({"_id":arg["server"]},{"_id":0})["ip"]} and tcp port {arg["port"]}', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
+# input('press')
+# edge =[11, 12, 25]
+# mat = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2]
+# mat=set_mat(None)[1]
+# direction ='n'
+# print(get_closest(edge,mat,direction))
+# import utils2
+# click(173,-2,-20)

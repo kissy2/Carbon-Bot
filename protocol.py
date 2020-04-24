@@ -7,9 +7,7 @@ import pprint
 import json
 import logging
 from win10toast import ToastNotifier
-toaster=ToastNotifier()
-
-logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename='lol1.log', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename='log.txt', level=logging.DEBUG)
 
 with (Path(__file__).parent / "protocol.pk").open("rb") as f:
 	types = pickle.load(f)
@@ -219,8 +217,6 @@ def addGameFightCharacterInformations(ans):
 		useful["fight"]["ap"] = ans["stats"]["actionPoints"]
 		useful["fight"]["mp"] = ans["stats"]["movementPoints"]
 		useful["lifepoints"] = ans["stats"]["lifePoints"]
-		if useful["lifepoints"]<100:
-			toaster.show_toast("Possible Fight Lost", "Alert!", threaded=True, duration=150)
 
 	else:
 		useful["fight"]["teamMembers"][id]["status"] = ans["status"]["__type__"]
@@ -344,7 +340,7 @@ def read(type, data: Data):
 		if ans['channel'] == 9:
 			msg = ans['content']
 			sender = ans['senderName']
-			toaster.show_toast(sender + ': '+msg, "Alert!", threaded=True, duration=15)
+			ToastNotifier().show_toast(sender + ': '+msg, "Alert!", threaded=True, duration=15)
 
 	elif ans["__type__"] == "InventoryWeightMessage":
 		id = 3009
@@ -385,8 +381,6 @@ def read(type, data: Data):
 			if x!='__type__':
 				useful['fight']['range']+=int(ans["stats"]["range"][x])
 		useful["lifepoints"] = ans["stats"]["lifePoints"]
-		if useful["lifepoints"]<100:
-			toaster.show_toast("Possible Fight Lost", "Alert!", threaded=True, duration=150)
 		useful["fight"]["lifepoints"] = ans["stats"]["lifePoints"]
 		useful["fight"]["ap"] = int(ans["stats"]["actionPointsCurrent"])
 		useful["fight"]["mp"] = int(ans["stats"]["movementPointsCurrent"])
@@ -463,8 +457,6 @@ def read(type, data: Data):
 	elif ans["__type__"] == "LifePointsRegenEndMessage":
 		useful["maxLifePoints"] = ans["maxLifePoints"]
 		useful["lifepoints"] = ans["lifePoints"]
-		if useful["lifepoints"]<100:
-			toaster.show_toast("Possible Fight Lost", "Alert!", threaded=True, duration=150)
 		useful["fight"]["maxLifePoints"] = ans["maxLifePoints"]
 		useful["fight"]["lifepoints"] = ans["lifePoints"]
 
@@ -655,6 +647,7 @@ def read(type, data: Data):
 		useful["fight"]["mp"] = 3
 		useful["fight"]["range"] = 1
 		useful["fight"]["mypos"] = useful["mypos"]
+		useful["fight"]['alive'] = True
 
 
 	elif ans["__type__"] == "GameFightPlacementPossiblePositionsMessage":
@@ -666,8 +659,6 @@ def read(type, data: Data):
 	elif ans["__type__"] == "UpdateLifePointsMessage":
 		id = 5658
 		useful["lifepoints"] = ans["lifePoints"]
-		if useful["lifepoints"]<100:
-			toaster.show_toast("Possible Fight Lost", "Alert!", threaded=True, duration=150)
 		useful["maxLifePoints"] = ans["maxLifePoints"]
 		try:
 			useful["fight"]["lifepoints"] = ans["lifePoints"]
@@ -682,8 +673,6 @@ def read(type, data: Data):
 			useful["mypos"] = ans["disposition"]["cellId"]
 			useful["fight"]["mypos"] = ans["disposition"]["cellId"]
 			useful["lifepoints"] = ans["stats"]["lifePoints"]
-			if useful["lifepoints"]<100:
-				toaster.show_toast("Possible Fight Lost", "Alert!", threaded=True, duration=150)
 			useful["maxLifePoints"] = ans["stats"]["maxLifePoints"]
 			useful["fight"]["lifepoints"] = ans["stats"]["lifePoints"]
 			useful["fight"]["maxLifePoints"] = ans["stats"]["maxLifePoints"]
@@ -798,6 +787,7 @@ def read(type, data: Data):
 		useful['zaap_destinations'] = None
 
 	elif ans["__type__"] == "GameFightEndMessage":
+		# print(ans)
 		for result in ans["results"]:
 			if result["__type__"] == "FightResultPlayerListEntry":
 				if result["id"] == useful["contextualId"]:
@@ -855,22 +845,10 @@ def read(type, data: Data):
 		except:
 			# logging.error("deleting unixisting actor")
 			pass
-	elif ans["__type__"] == "AnomalySubareaInformation":
-		pass
+
 
 	else:
 		flag = False
-	# todo if enventory is full
-	# else:
-	#     pp = pprint.PrettyPrinter(indent=4)
-	#     print("\n\n\n\n\n")
-	#     pp.pprint(ans)
-	# print("\n\n")
-	# # pp.pprint(useful["current_map"]["mapid"])
-	# pp.pprint(useful)
-	# if type["parent"] is None:
-	#     logging.info(ans)
-	# print(useful)
 	return ans
 
 

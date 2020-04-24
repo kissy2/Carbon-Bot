@@ -50,6 +50,7 @@ function move()
 		{map = "22,-22", changeMap = "top", gather = true},
 		{map = "23,-21", changeMap = "top", gather = true},
 		{map = "23,-20", changeMap = "top", gather = true},
+		{map = "25,-21", changeMap = "top", gather = true},
 		{map = "26,-23", changeMap = "top", gather = true},
 	}
 end

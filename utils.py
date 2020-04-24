@@ -4,10 +4,18 @@ from start import useful
 from math import ceil,floor
 from time import sleep
 from pywinauto.application import Application
-from pywinauto.findwindows import find_window
-wait,collection,app=lambda x,y:sleep(uniform(x,y)),MongoClient('mongodb+srv://carbon:bot@carbon-9bthr.gcp.mongodb.net/test?retryWrites=true&w=majority').carbon_db,Application().connect(handle=find_window(title_re='Unfriendly')).top_window()
+from pywinauto.findwindows import find_elements
+import argparse
+import logging
+logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename='log.txt', level=logging.DEBUG)
+(arg:=argparse.ArgumentParser()).add_argument("-n", "--name", required=True, help="ENTER YOUR CHARACTER NAME")
+arg.add_argument("-s", "--server", required=True, help="ENTER YOUR SERVER NAME")
+arg.add_argument("-p", "--port", required=True, help="ENTER DOFUS CLIENT PORT NUMBER")
+arg=vars(arg.parse_args())
+wait,window=lambda x,y:sleep(uniform(x,y)), find_elements(title_re=f'{arg["name"]}')[0]
+collection,app=MongoClient('mongodb://localhost:27017/').admin, Application().connect(handle=window.handle).top_window()
 app.move_window(x=-10, y=0, width=1365, height=768, repaint=True)
-# app.minimize()
+app.minimize()
 
 def shortest(heap,target,c=True):
 	m,ret,i,index,decal=10000,[],0,[],0
@@ -26,7 +34,7 @@ def shortest(heap,target,c=True):
 	return ret,heap,None 
 
 def pathfinder(start,target,shuffle=True,multipath=False):
-	print("find path from ",start,target)
+	logging.info(f'Finding a path from {start} to {target}')
 	f,g,get=lambda s,t:4*(abs(t[0]-s[0] if t[0]>0 and s[0]>0 or t[0]<0 and s[0]<0 else abs(t[0])+abs(s[0]))+abs(t[1]-s[1] if t[1]>0 and s[1]>0 or t[1]<0 and s[1]<0 else abs(t[1])+abs(s[1]))),lambda x:sample(('n','s','w','e','d'),5) if x else ('n','s','w','e','d'),lambda x:collection.nodes.find_one({'_id':x},{'coord':1,'n':1,'s':1,'w':1,'e':1,'d':1})
 	start,target=get(start),get(target)
 	heap,done,wait=[[[start,],f(start['coord'],target['coord'])]],set(),[]
@@ -42,6 +50,7 @@ def pathfinder(start,target,shuffle=True,multipath=False):
 			ret=[]
 			for p in path:
 				ret.append([[d[1],y,p[n]['_id']] for n in range(len(p)-1) for y in g(False) for d in p[n][y].items() if d[0]==p[n+1]['_id']])
+			logging.info(f'Path directions : {[x[1] for x in ret[0]]}')
 			return ret if multipath else ret[0]
 		for node in nodes:
 			for d in g(shuffle):
@@ -55,13 +64,17 @@ def pathfinder(start,target,shuffle=True,multipath=False):
 	return []
 
 def click(cellid,offx=0,offy=0,alt=0,direction=None):
-	limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+11) if odd else (x[0],x[1]+24) ,'n':lambda x,odd:(x[0],x[1]-21) if odd else (x[0],x[1]-8),'w':lambda x,odd:(x[0]-45,x[1]) if odd else (x[0]-18,x[1]),'e':lambda x,odd:(x[0]+18,x[1]) if odd else (x[0]+45,x[1]),'d': lambda x,odd:(x[0],x[1])},248,14,cellid//14,cellid % 14
-	if odd:=line%2:
-		x+=31
-	if direction:
-		x,y=limit[direction]((x,y),odd)
-	print("click",cellid,offx,offy,alt,direction,(x+ceil(row*62.4)+floor(offx*.687), y+floor(15.6*line)+ceil(offy*.6)-8*alt))
-	app.click(coords=(x+ceil(row*62.4)+floor(offx*.687), y+floor(15.5*line)+ceil(offy*.6)-8*alt))
+	try:
+		limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+11) if odd else (x[0],x[1]+24) ,'n':lambda x,odd:(x[0],x[1]-21) if odd else (x[0],x[1]-8),'w':lambda x,odd:(x[0]-45,x[1]) if odd else (x[0]-18,x[1]),'e':lambda x,odd:(x[0]+18,x[1]) if odd else (x[0]+45,x[1]),'d': lambda x,odd:(x[0]+7,x[1]+7)},251,16,cellid//14,cellid % 14
+		if odd:=line%2:
+			x+=31
+		if direction:
+			x,y=limit[direction]((x,y),odd)
+		logging.info(f'Click : {cellid} , {offx} ,{offy}, {alt}, {direction}, {(x+ceil(row*62.4)+floor(offx*.687), y+floor(15.5*line)+ceil(offy*.6)-8*alt+38)}')
+		app.click(coords=(x+ceil(row*62.4)+floor(offx*.687), y+floor(15.5*line)+ceil(offy*.6)-8*alt))
+	except:
+		print('Error in click')
+		logging.error(f'Error in click cellid : {cellid} , offx : {offx} , offy : {offy} , altitude : {alt} , direction : {direction}',exc_info=1)
 
 def switch_coord(c):
 	i=0
@@ -100,9 +113,10 @@ def insight(x0,y0,x1,y1,mat):
 		n -= 1
 	return True
 
-
 def get_current_node(cond=0,mapid=None,pos=None):
-	projec,(pos,mapid)={'walkable':1},(pos,mapid)if pos else (useful['mypos'],useful['mapid'])
+	projec={'walkable':1}
+	if pos is None:
+		pos,mapid=useful['mypos'],useful['mapid']
 	if not cond:
 		projec['fightcells']=1
 	elif cond==2:
@@ -112,101 +126,122 @@ def get_current_node(cond=0,mapid=None,pos=None):
 	for n in collection.nodes.find({'mapid':mapid},projec):
 		if not cond or pos in n['walkable']:
 			return n['_id'] if cond==1 else {'interactives':n['interactives'],'walkable':n['walkable']} if cond==2 else (n['_id'],n['d']) if cond==3 else n['fightcells']
+	print('Error in get_current_node')
+	logging.error(f'Error in get_current_node could not detect node cond : {cond} mapid : {mapid} pos: {pos} true pos : {useful["mypos"]}')
+	return n['_id']
 
 def get_path(x0,y0,x1,y1,mat,revert=True):
-	f,done=lambda x0,y0:abs(x0-x1)+abs(y0-y1),{revert_coord(x0,y0)}
-	heap=[[[(x0,y0)],f(x0,y0)]]
-	while heap:
-		best,heap,path=shortest(heap,(x1,y1),False)
-		if path:
-			return [revert_coord(c[0],c[1]) for c in path] if revert else len(path)
-		temp=set()
-		for i in best:
-			c=(i[0][-1][0],i[0][-1][1])
-			for j in ((0, 1), (0, -1), (-1, 0), (1, 0)):
-				d = (i[0][-1][0] + j[0], i[0][-1][1] + j[1])
-				if (cellid:=revert_coord(d[0],d[1]))>-1 and cellid<560  and mat[cellid] == 2 and d not in i[0] and c not in temp and c not in done:
-					heap.append([i[0]+[d],f(d[0],d[1])])
-					temp.add(cellid)
-			done.add(c)
-	return [] if revert else 599
+	try:
+		f,done=lambda x0,y0:abs(x0-x1)+abs(y0-y1),{revert_coord(x0,y0)}
+		heap=[[[(x0,y0)],f(x0,y0)]]
+		while heap:
+			best,heap,path=shortest(heap,(x1,y1),False)
+			if path:
+				return [revert_coord(c[0],c[1]) for c in path] if revert else len(path)
+			temp=set()
+			for i in best:
+				c=(i[0][-1][0],i[0][-1][1])
+				for j in ((0, 1), (0, -1), (-1, 0), (1, 0)):
+					d = (i[0][-1][0] + j[0], i[0][-1][1] + j[1])
+					if (cellid:=revert_coord(d[0],d[1]))>-1 and cellid<560  and mat[cellid] == 2 and d not in i[0] and c not in temp and c not in done:
+						heap.append([i[0]+[d],f(d[0],d[1])])
+						temp.add(cellid)
+				done.add(c)
+		return [] if revert else 599
+	except:
+		print('Error in get_path')
+		logging.error(f'Error in get_path x0:{x0}, y0:{y0}, x1:{x1}, y1:{y1}, revert:{revert}\nmat : {mat}',exc_info=1)
 
 def get_closest(x0,y0,check_insight=False):#check insight not implemented
-	m=600
-	for x in useful['fight']['enemyteamMembers'].values():
-		x1,y1=switch_coord(x['cellid'])
-		if (calc:=abs(x0-x1)+abs(y0-y1))<m:
-			m,c=calc,x['cellid']
-	return c
+	try:
+		m,c=600,0
+		for x in useful['fight']['enemyteamMembers'].values():
+			x1,y1=switch_coord(x['cellid'])
+			if (calc:=abs(x0-x1)+abs(y0-y1))<m:
+				m,c=calc,x['cellid']
+		return c
+	except:
+		print('Error in get_closest (fight)')
+		logging.error(f'Error in get_closest x0:{x0}, y0:{y0}\nuseful : {useful}',exc_info=1)
 
 def check_spells(spells,buffs,mat):
-	enter=True
-	while useful['infight'] and useful['fight']['ap']>2 and enter:
-		x0,y0=switch_coord(p:=useful['mypos'])
-		x1,y1=switch_coord(get_closest(x0,y0))
-		for k,v in spells.items():
-			if v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0) >= (calc:=abs(x0-x1)+abs(y0-y1)) and calc >=v['range'][0] and not v['fc'] and (not v['inline'] or y0==y1 or x0==x1) and (not v['sight'] or insight(x0,y0,x1,y1,mat)):
-				c=v['cpt']
-				while c and useful['infight'] and v['ap']<=useful['fight']['ap']:
-					app.send_keystrokes(k)
-					wait(1,1.5)
-					click(get_closest(x0,y0))
-					v['fc'],c=v['recast'],c-1
-					wait(1.5,3)
-		if useful['infight'] and useful['fight']['ap']>2:
-			if useful['fight']['mp']:
-				if (path:=get_path(x0,y0,x1,y1,mat)[1:-1]):
-					while p==useful['mypos']:
-						click(path[min(useful['fight']['mp'],len(path))-1])
-						wait(2,3)
-				useful['fight']['mp']=0
-			else:
-				for k,v in buffs.items():
-					if not v['fc'] and v['ap']<=useful['fight']['ap']:
-						app.send_keystrokes('{VK_CONTROL DOWN}')
+	try:
+		enter=True
+		while useful['infight'] and useful['fight']['ap']>2 and enter:
+			x0,y0=switch_coord(p:=useful['mypos'])
+			x1,y1=switch_coord(get_closest(x0,y0))
+			for k,v in spells.items():
+				if v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0) >= (calc:=abs(x0-x1)+abs(y0-y1)) and calc >=v['range'][0] and not v['fc'] and (not v['inline'] or y0==y1 or x0==x1) and (not v['sight'] or insight(x0,y0,x1,y1,mat)):
+					c=v['cpt']
+					while c and useful['infight'] and v['ap']<=useful['fight']['ap']:
 						app.send_keystrokes(k)
-						app.send_keystrokes('{VK_CONTROL}')
 						wait(1,1.5)
-						click(useful['mypos'])
-						wait(1.5,2)
-						v['fc']=v['recast']
-						if k=='1':
-							break
+						if not useful['infight']:
+							return None,None
+						click(get_closest(x0,y0))
+						v['fc'],c=v['recast'],c-1
+						wait(1.5,3)
+			if useful['infight'] and useful['fight']['ap']>2:
+				if useful['fight']['mp']:
+					if (path:=get_path(x0,y0,x1,y1,mat)[1:-1]):
+						while p==useful['mypos']:
+							click(path[min(useful['fight']['mp'],len(path))-1])
+							wait(2,3)
+					useful['fight']['mp']=0
 				else:
-					enter=False
-	for xx in (spells,buffs):
-		for x in xx.values():
-			if x['fc']:
-				x['fc']-=1
-	wait(1.5,2)
-	return spells,buffs
+					for k,v in buffs.items():
+						if not v['fc'] and v['ap']<=useful['fight']['ap']:
+							app.send_keystrokes('{VK_CONTROL DOWN}')
+							app.send_keystrokes(k)
+							app.send_keystrokes('{VK_CONTROL}')
+							wait(1,1.5)
+							click(useful['mypos'])
+							wait(1.5,2)
+							v['fc']=v['recast']
+							if k=='1':
+								break
+					else:
+						enter=False
+		for xx in (spells,buffs):
+			for x in xx.values():
+				if x['fc']:
+					x['fc']-=1
+		wait(1.5,2)
+		return spells,buffs
+	except:
+		print('Error in check_spells')
+		logging.error(f'Error in check_spells\nuseful : {useful}\nspells : {spells}\nbuffs : {buffs}\nmat : {mat}',exc_info=1)
 
 def fight(first_fight=False):
-	print("infight")
-	app.send_keystrokes('{VK_SHIFT}')
-	if first_fight:
-		click(557,offy=20,offx=15)
-		wait(.25,.75)
-		app.send_keystrokes('+{(} ')
-		wait(.5,1)
-		app.send_keystrokes('//s{ENTER}')	
-	wait(1.5,2)
-	m,mat=600,get_current_node()
-	for c in useful['fight']['positionsForDefenders'] if useful['fight']['defenderId'] == useful['contextualId'] else useful['fight']['positionsForChallengers']:
-		(x0,y0),(x1,y1)=switch_coord(useful['fight']['enemyteamMembers'][-1]['cellid']),switch_coord(c)
-		if (calc:=abs(x0-x1)+abs(y0-y1))<m:
-			index,m=c,calc
-	click(index)
-	wait(.5,.75)
-	spells,buffs = {'1': {'range': (6, 10, True),'ap':4 ,'cpt' : 1 ,'recast': 3, 'fc': 0, 'sight': True,'inline': False}, '2': {'range': (1, 8, True),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True}, '3': {'range': (5, 10, True),'ap':3, 'cpt' : 1 , 'recast': 3, 'fc': 1, 'sight': True, 'inline': False}, '4': {'range': (1, 10, True),'ap':2, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}, '5': {'range': (1, 12, True),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}, '6': {'range': (1, 7, True),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': False, 'inline': False}},{'1' : {'ap':3, 'recast':5,'fc':0},'2' : {'ap':3, 'recast':6,'fc':0},'3' : {'ap':2, 'recast':5,'fc':0}}
-	while useful['infight']:
-		app.send_keystrokes('{F1}')
-		while 'turn' in useful['fight'].keys() and not useful['fight']['turn']:
-			wait(1.5,3)
-		spells,buffs=check_spells(spells,buffs,mat)
-	prev=useful['mypos']
-	wait(2.5,3.5)
-	app.send_keystrokes('{ENTER}')
-	wait(0.5,1)
-	app.send_keystrokes('{ENTER}')
-	return prev
+	try:
+		logging.info(f'Enter fight\nuseful : {useful}')
+		if first_fight:
+			click(557,offy=20,offx=15)
+			wait(.25,.75)
+			app.send_keystrokes('+{(} ')
+			wait(.5,1)
+			app.send_keystrokes('//s~')	
+		wait(1.5,2)
+		m,mat,prev,mapid=600,get_current_node(),useful['mypos'],useful['mapid']
+		for c in useful['fight']['positionsForDefenders'] if useful['fight']['defenderId'] == useful['contextualId'] else useful['fight']['positionsForChallengers']:
+			(x0,y0),(x1,y1)=switch_coord(useful['fight']['enemyteamMembers'][-1]['cellid']),switch_coord(c)
+			if (calc:=abs(x0-x1)+abs(y0-y1))<m:
+				index,m=c,calc
+		if prev!= index:
+			click(index)
+			wait(.5,.75)
+		spells,buffs = {'1': {'range': (6, 10, True),'ap':4 ,'cpt' : 1 ,'recast': 3, 'fc': 0, 'sight': True,'inline': False}, '2': {'range': (1, 8, True),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True}, '3': {'range': (5, 10, True),'ap':3, 'cpt' : 1 , 'recast': 3, 'fc': 1, 'sight': True, 'inline': False}, '4': {'range': (1, 10, True),'ap':2, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}, '5': {'range': (1, 12, True),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}, '6': {'range': (1, 7, True),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': False, 'inline': False}},{'1' : {'ap':3, 'recast':5,'fc':0},'2' : {'ap':3, 'recast':6,'fc':0},'3' : {'ap':2, 'recast':5,'fc':0}}
+		while useful['infight']:
+			app.send_keystrokes('{F1}')
+			while 'turn' in useful['fight'].keys() and not useful['fight']['turn']:
+				wait(1.5,3)
+			spells,buffs=check_spells(spells,buffs,mat)
+		prev=useful['mypos']
+		wait(2,3)
+		app.send_keystrokes('~')
+		wait(1,1.5)
+		app.send_keystrokes('~')
+		return prev
+	except:
+		print('Error in fight')
+		logging.error(f'Error in fight\nuseful : {useful}',exc_info=1)

@@ -2,8 +2,10 @@ from re import search,findall
 from json import load
 from urllib.request import Request,urlopen,build_opener,HTTPCookieProcessor
 from os import listdir
-from utils import collection
-reg,base,req,opener='[0-9]+-[a-zA-Z-]+">[a-zA-Z -]+','https://www.dofus.com/en/mmorpg/encyclopedia/',lambda l:Request(l, headers={'User-Agent': 'Mozilla/5.0'}),build_opener(HTTPCookieProcessor())
+from pymongo import MongoClient
+from json import dump
+from launch import get_current_node,sniff,Raw,on_receive,on_msg,useful,Thread,click
+collection,reg,base,req,opener=MongoClient('mongodb://localhost:27017/').admin,'[0-9]+-[a-zA-Z-]+">[a-zA-Z -]+','https://www.dofus.com/en/mmorpg/encyclopedia/',lambda l:Request(l, headers={'User-Agent': 'Mozilla/5.0'}),build_opener(HTTPCookieProcessor())
 
 def get_neighbors(cell,shape,floor):
 	done,heap,to_add=set(),[cell],(13,14,-13,-14)
@@ -38,9 +40,10 @@ def create_nodes():
 			node['interactives'],m['walkable']=({i:j for i,j in m['interactives'].items()},[]) if len(m['walkable'])-(l:=len(neighbors))<5 else ({i:j for i,j in m['interactives'].items() if check_adjc(int(i),neighbors)},[x for x in m['walkable'] if x not in neighbors])
 			m['interactives']={x[0]:x[1] for x in m['interactives'].items() if x[0] not in node['interactives']}
 			#add fix to fish in multi nodes map and remove length filter hardcode (2 lines above)
-			if l>4 and (node['n'] or node['s'] or node['w'] or node['e'] or node['d']):
+			if l>4 and (node['n'] or node['s'] or node['w'] or node['e'] or node['d'] or node['interactives']):
 				collection.nodes.insert_one(node)
 				nid+=1
+
 
 def link_nodes():
 	f=lambda c,d:int(c+13 if d=='w' else c-13 if d=='e' else (40 if c//14 else 39)*14-(14-c%14) if d=='n' else c%14+(14 if c//14%2 else 0))
@@ -115,7 +118,7 @@ def set_interactives():
 
 def set_paths(worldmap=1):
 	collection.paths.delete_many({})
-	fullpath,f='D:/sniffbot2.0-light/paths/',lambda x,c=True,s=0:x.index('"' if c else ",",s)
+	fullpath,f='./paths/',lambda x,c=True,s=0:x.index('"' if c else ",",s)
 	for p in listdir(fullpath):
 		if '.' in p:
 			with open(fullpath+p) as g:
@@ -129,50 +132,86 @@ def set_paths(worldmap=1):
 						path['nodes'].append(l[0]['_id'])
 				collection.paths.insert_one(path)
 
+def set_paths_2():
+	Thread(target=sniff, kwargs={'filter':'tcp port 5555', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
+	with open('./paths/underground.json', 'r', encoding='utf8') as f:
+		for x in (out:=load(f)):
+			nodes=[]
+			for y in x['nodes']:
+				nodes.append(get_current_node(1,y[0],y[1]))
+			collection.paths.insert_one({'_id':x['_id'],'zaap':x['zaap'],'nodes':nodes})
+	while 1:
+		input("GO TO STARTING ZAAP AND HIT ENTER")
+		t=collection.nodes.find_one({'mapid':useful['mapid']},{'coord':1})
+		new_path,temp={'_id':input('WRITE THE PATH NAME'),'zaap':f'{t["coord"][0]},{t["coord"][1]}','nodes':[t['_id']]},[[useful['mapid'],useful['mypos']]]
+		while 1:
+			if (i:=input("GO TO THE NEXT MAP AND HIT ENTER _OR_ S TO SAVE THE PATH\n"))=='':
+				new_path['nodes'].append(nid:=get_current_node(1))
+				temp.append([useful['mapid'],useful['mypos']])
+			elif i=='s':
+				try:
+					collection.paths.insert_one(new_path)
+					with open('./paths/underground.json', 'w', encoding='utf8') as f:
+						out.append({'_id':new_path['_id'],'zaap':new_path['zaap'],'nodes':temp})
+						dump(out,f)
+				except:
+					print('AN ERROR OCCURED WHILE INSERTING TRY AGAIN WITH A DIFFERENT NAME')
+				break
+			else:
+				print('NO SUCH OPTION TRY AGAIN')
+
 def set_doors_hardcode():
 	from win32api import GetCursorPos as gp
-	from json import dump
-	from launch import get_current_node,sniff,Raw,on_receive,on_msg,useful,Thread,click
 	with open('./assets/Doors.json', 'r', encoding='utf8') as f:
-		out=load(f)
-		for x in out:
+		for x in (out:=load(f)):
 			temp={}
 			for k,v in x['d'].items():
 				temp[t]=temp[t]+[int(k)] if (t:=get_current_node(1,v[0],v[1])) in temp else [int(k)]
 			collection.nodes.update_one({'_id':get_current_node(1,x['mapid'],x['pos'])},{'$set':{'d':temp}})
 	Thread(target=sniff, kwargs={'filter':'tcp port 5555', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
 	while 1:
-		if (i:=input('1 - LINK DOORS\n2 - LINK CAVES'))=='1':
+		if (i:=input('1 - LINK DOORS\n2 - LINK CAVES\n'))=='1':
 			temp,temp1,node,pos,mapid={},{},get_current_node(3),useful['mypos'],useful['mapid']
-			for x in node[1]:
-				input(f'Move to the next map that link the Door at cell {x} and hit ENTER')
-				temp[tid]= temp[tid]+[int(x)] if (tid:=get_current_node(1)) in temp else [int(x)]
-				temp1[x]=(useful['mapid'],useful['mypos'])
-			out.append({'mapid':mapid,'pos':pos,'d':temp1})
+			for x,v in node[1].items():
+				if v==-1:
+					input(f'Move to the next map that link the Door at cell {x} HIT ENTER WHEN DONE')
+					temp[tid]= temp[tid]+[int(x)] if (tid:=get_current_node(1)) in temp else [int(x)]
+					temp1[x]=(useful['mapid'],useful['mypos'])
+				else:
+					temp[x]=v
 			with open('./assets/Doors.json', 'w', encoding='utf8') as f:
+				out.append({'mapid':mapid,'pos':pos,'d':temp1})
 				dump(out,f)
 			collection.nodes.update_one({'_id':node[0]},{'$set':{'d':temp}})
 		elif i=='2':
 			input('*****MOVE THE CURSOR TO THE CAVE ENTRANCE AND HIT ENTER*****')
-			nid,mapid,pos=get_current_node(1),useful['mapid'],useful['mypos']
+			nid,mapid,pos=get_current_node(3),useful['mapid'],useful['mypos']
 			l,r,(cpx,cpy)=0,0,gp()
 			while (c:=cpx-62)>252:
 				r,cpx=r+1,c
 			while (c:=cpy-16)>54:
 				l,cpy=l+1,c
 			click(cell:=l*14+r)
-			if input(f'CLICKING ON THE ESTIMATED CELL {cell} WHEN THE MAP IS CHANGED HIT SPACE ENTER TO SAVE IT ELSE ENTER TO TRY AGAIN')==' ':
-				collection.nodes.update_one({'_id':nid},{'$set':{'d':{get_current_node(1):[cell]}}})
-				out.append({'mapid':mapid,'pos':pos,'d':{str(cell):(useful['mapid'],useful['mypos'])}})
+			if input(f'CLICKING ON THE ESTIMATED CELL {cell} WHEN THE MAP IS CHANGED HIT SPACE THEN ENTER TO SAVE IT ELSE HIT ENTER TO TRY AGAIN')==' ':
+				nid[1][get_current_node(1)]=[cell]
 				with open('./assets/Doors.json', 'w', encoding='utf8') as f:
+					out.append({'mapid':mapid,'pos':pos,'d':{str(cell):(useful['mapid'],useful['mypos'])}})
 					dump(out,f)
+				collection.nodes.update_one({'_id':nid[0]},{'$set':{'d':nid[1]}})
 			else:
 				print("ABORT")
 		else:
 			print('not yet implemented maybe this option will add missing resources')
 
+def set_exceptions():
+	while 1:
+		i,x,y=input('Enter Resource Name : '),int(input('ENTER X_OFFSET : ')),int(input('ENTER Y_OFFSET : '))
+		for x in (r:=collection.skills.find_one({'_id':{'$regex':i,'$options':'i'}},{'skill_id':1}))['skill_id']:
+			collection.exceptions.insert_one({'_id':x,'name':r['_id'],'offx':x,'offy':y})
+		print('DONE\n')
 
-set_doors_hardcode()
+# set_exceptions()
+# set_doors_hardcode()
 # create_nodes()
 # link_nodes()
 # set_paths()

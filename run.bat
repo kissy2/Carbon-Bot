@@ -1,1 +1,1 @@
-cd/dd:/sniffbot2.0-light&&"venv/scripts/activate"&&py launch.py
+cd/dd:/sniffbot2.0-light&&"venv/scripts/activate"&&py launch.py -n Unfriendly -s furye -p 5555

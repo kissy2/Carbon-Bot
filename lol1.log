@@ -1,8 +1,0 @@
-2020-04-19 17:28:01,827 ERROR Could not compile filter expression ip host 172.65.232.71 tcp port 5555
-2020-04-19 17:28:10,497 ERROR Could not compile filter expression ip host 172.65.232.71 tcp port 5555
-2020-04-19 17:28:17,867 ERROR Could not compile filter expression ip host 172.65.232.71 tcp port 5555
-2020-04-19 17:28:28,239 ERROR Could not compile filter expression ip host 172.65.232.71 tcp port 5555
-2020-04-19 17:28:40,488 ERROR Could not compile filter expression ip and host 172.65.232.71 tcp port 5555
-2020-04-19 17:28:49,106 ERROR Could not compile filter expression host 172.65.232.71 tcp port 5555
-2020-04-19 17:28:53,518 ERROR Could not compile filter expression host 172.65.232.71 tcp port 5555
-2020-04-19 17:29:14,866 ERROR Could not compile filter expression ip 172.65.232.71 tcp port 5555
