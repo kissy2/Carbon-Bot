@@ -46,6 +46,7 @@ useful = {"resources": {},
 		  "subAreaId": None,
 		  "fightCount": None,
 		  "full_inventory": False,
+		  "backup":False
 		  }
 
 tmp = {}
@@ -573,16 +574,16 @@ def read(type, data: Data):
 	elif ans["__type__"] == "GameFightTurnFinishMessage":
 		useful["fight"]['afk'] = True
 
-	elif ans["__type__"] == "GameFightTurnReadyMessage":
-		id = useful["fight"]["TurnReadyRequest"]
-		useful["fight"]["TurnReadyRequest"] = (id, "Ready")
+	# elif ans["__type__"] == "GameFightTurnReadyMessage":
+	# 	id = useful["fight"]["TurnReadyRequest"]
+	# 	useful["fight"]["TurnReadyRequest"] = (id, "Ready")
 
 	elif ans["__type__"] == "GameActionFightSlideMessage":
 		if ans["targetId"] < 0 and ans["targetId"] not in useful["fight"]["mysummons"]:
 			useful["fight"]["enemyteamMembers"][int(ans["targetId"])]["cellid"] = ans["endCellId"]
 
-	elif ans["__type__"] == "GameFightTurnReadyRequestMessage":
-		useful["fight"]["TurnReadyRequest"] = ans["id"]
+	# elif ans["__type__"] == "GameFightTurnReadyRequestMessage":
+	# 	useful["fight"]["TurnReadyRequest"] = ans["id"]
 
 	elif ans["__type__"] == "GameFightTurnEndMessage":
 		if ans["id"]==useful['contextualId']:
@@ -759,6 +760,14 @@ def read(type, data: Data):
 				useful['jobs'][key].update(value)
 			else:
 				useful['jobs'][key] = value
+
+	elif ans["__type__"] == "CurrentServerStatusUpdateMessage":
+		if ans['status'] == 5:
+			useful['backup']=True
+			logging.warning('Server backup')
+		if ans['status'] == 3:
+			useful['backup']=False
+			logging.warning('Server backup finished')
 
 	elif ans["__type__"] == "JobDescriptionMessage":
 		# for desc in ans['jobsDescription']:

@@ -219,8 +219,8 @@ def fight(first_fight=False):
 			click(557,offy=20,offx=15)
 			wait(.25,.75)
 			app.send_keystrokes('+{(} ')
-			wait(.5,1)
-			app.send_keystrokes('//s~')	
+			wait(.75,1)
+			app.send_keystrokes('^{a}/s~')
 		wait(1.5,2)
 		m,mat,prev,mapid=600,get_current_node(),useful['mypos'],useful['mapid']
 		for c in useful['fight']['positionsForDefenders'] if useful['fight']['defenderId'] == useful['contextualId'] else useful['fight']['positionsForChallengers']:

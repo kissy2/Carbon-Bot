@@ -1,2 +1,6 @@
+Saturday, 25 April 2020 12:44:37 : Name : Crowmanion the Primitive , Level : 108 , Coord : [-11, -60]
+Saturday, 25 April 2020 12:09:46 : Name : Biblokajin the Bald , Level : 26 , Coord : [-5, -43]
+Saturday, 25 April 2020 11:46:24 : Name : Fisheralf the Stewart , Level : 86 , Coord : [-18, -10]
+Friday, 24 April 2020 17:06:37 : Name : Bulbisonic the Penetrating , Level : 38 , Coord : [26, -42]
 Friday, 24 April 2020 09:29:27 : Name : Pandarwin the Naturist , Level : 46 , Coord : [28, -36]
 Friday, 24 April 2020 05:01:37 : Name : Dragorse the Wild , Level : 98 , Coord : [-4, 26]

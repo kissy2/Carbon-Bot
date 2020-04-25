@@ -10,12 +10,12 @@ def get_closest(edge,mat,direction):
 	try:
 		if direction=='d':
 			return edge[randint(0,len(edge)-1)]
-		l,base,done,ret=[useful['mypos']],(28,-28,1,-1,13,14,-13,-14),set(),[]
+		l,base,done,ret=[useful['mypos']],(0,28,-28,1,-1,13,14,-13,-14),set(),[]
 		while l:
-			for i in range(8): 
-				if (ooe:=l[0]//14%2) and l[0]%14==13 and i in (5,6) or not ooe and not l[0]%14 and i in (4,7) or not l[0]%14 and i==3 or l[0]%14==13 and i==2:
+			for i in range(9): 
+				if (ooe:=l[0]//14%2) and l[0]%14==13 and i in (6,7) or not ooe and not l[0]%14 and i in (5,8) or not l[0]%14 and i==4 or l[0]%14==13 and i==3:
 					continue  
-				next_cell=(base[i]+1 if ooe and i in (4,5) else base[i] -1 if not ooe and i>5 else base[i])+l[0]
+				next_cell=(base[i]+1 if ooe and i in (5,6) else base[i] -1 if not ooe and i>6 else base[i])+l[0]
 				if next_cell>-1 and next_cell<560  and next_cell not in l and next_cell not in done and mat[next_cell]==2:
 					if next_cell in edge:
 						ret.append(next_cell)
@@ -279,7 +279,8 @@ def check_inventory():
 
 def execute(paths_names, rsc=[], priority=[] ,check_archi=True, rotation=-1):
 	try:
-		logging.info('CARBON BOT IS LAUNCHED')
+		print('CARBON BOT IS LAUNCHED')
+		logging.info('\n\nCARBON BOT IS LAUNCHED\n\n')
 		Thread(target=sniff, kwargs={'filter':f'ip host {collection.servers.find_one({"_id":arg["server"]},{"_id":0})["ip"]} and tcp port {arg["port"]}', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
 		# cond_wait(5,10,('lifepoints',1,20,wrapper(notify.show_toast,title='Script Eroor',msg='Could Not Hook Game Process',duration=1000)))
 		g=lambda rsc:[s for r in rsc for x in collection.skills.find({'_id':{'$regex': '^%s.*'%(r),'$options':'i'}}) for s in x['skill_id']]
@@ -314,20 +315,6 @@ def execute(paths_names, rsc=[], priority=[] ,check_archi=True, rotation=-1):
 		logging.error(f'Error in execute but why',exc_info=1)
 
 
-execute(paths_names=['icefish','aspen','elm','holy','rice','rye'],
+execute(paths_names=['aspen','elm','icefish','holy','rice','rye'],
 		rsc=['nettle','ginseng','belladonna','rice','ray','sage','flax','rye','pandkin','silicate','lard','sickle','elm','aspen','hornbeam','icefish','tench','cod','holy','swordfish','monkfish','perch','Edelweiss','kaliptus','cherry'],
 		priority=['elm','aspen,','holy','kaliptus','cherry','tench','swordfish','icefish'])
-
-# h=pathfinder('9334','9346')
-# print([x[1] for x in h])
-# for x in h:
-# 	print(x[0])
-# Thread(target=sniff, kwargs={'filter':f'ip host {collection.servers.find_one({"_id":arg["server"]},{"_id":0})["ip"]} and tcp port {arg["port"]}', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}).start()
-# input('press')
-# edge =[11, 12, 25]
-# mat = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2]
-# mat=set_mat(None)[1]
-# direction ='n'
-# print(get_closest(edge,mat,direction))
-# import utils2
-# click(173,-2,-20)

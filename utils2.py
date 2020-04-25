@@ -117,7 +117,7 @@ def set_interactives():
 		f.write(f'resources={interactives}\ndoors={doors}')
 
 def set_paths(worldmap=1):
-	collection.paths.delete_many({})
+	# collection.paths.delete_many({})
 	fullpath,f='./paths/',lambda x,c=True,s=0:x.index('"' if c else ",",s)
 	for p in listdir(fullpath):
 		if '.' in p:
