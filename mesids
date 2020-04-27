@@ -1,0 +1,77 @@
+AdminCommandMessage : 76
+MapComplementaryInformationsDataInHavenBagMessage: 6622
+MapComplementaryInformationsDataInHouseMessage: 6130
+MapComplementaryInformationsDataMessage: 226
+MapComplementaryInformationsWithCoordsMessage: 6268
+ConsoleMessage : 75
+NetworkDataContainerMessage: 2
+AccountInformationsUpdateMessage: 6740
+GameActionFightDeathMessage: 1099
+GameActionFightDispellableEffectMessage: 6070
+GameActionFightDispellEffectMessage: 6113
+GameActionFightDispellMessage: 5533
+GameActionFightExchangePositionsMessage :5527
+GameActionFightKillMessage: 5571
+GameActionFightLifeAndShieldPointsLostMessage: 6310
+GameActionFightLifePointsGainMessage: 6311
+GameActionFightLifePointsLostMessage: 6312
+GameActionFightMarkCellsMessage: 5540
+GameActionFightMultipleSummonMessage: 6837
+GameActionFightPointsVariationMessage: 1030
+GameActionFightReflectSpellMessage: 5531
+GameActionFightSlideMessage: 5525
+GameActionFightSpellCastMessage : 1010
+GameActionFightSpellCooldownVariationMessage: 6219
+GameActionFightSummonMessage: 5825
+GameActionFightTeleportOnSameMapMessage: 5528
+SequenceEndMessage : 956
+SequenceStartMessage: 955
+AbstractGameActionMessage: 1000
+CharacterSelectedSuccessMessage: 153
+CharacterLevelUpMessage: 5670
+CharacterStatsListMessage: 500
+LifePointsRegenEndMessage: 5686
+UpdateLifePointsMessage: 5658
+ChatServerMessage: 881
+ChatAdminServerMessage: 6135
+GameFightShowFighterMessage: 5864
+GameFightEndMessage: 720
+GameFightHumanReadyStateMessage: 740
+GameFightJoinMessage: 702
+GameFightNewRoundMessage: 6239
+GameFightPlacementPossiblePositionsMessage: 703
+GameFightReadyMessage: 708
+GameFightStartMessage: 712
+GameFightSynchronizeMessage: 5921
+GameFightTurnEndMessage: 719
+GameFightTurnFinishMessage : 718
+GameFightTurnListMessage: 713
+GameFightTurnReadyMessage: 716
+GameFightTurnStartMessage: 714
+GameFightUpdateTeamMessage: 6465
+SlaveSwitchContextMessage: 6214
+NotificationByServerMessage: 6103
+GameRolePlayGameOverMessage: 746
+GameRolePlayMonsterAngryAtPlayerMessage: 6741
+GameRolePlayMonsterNotAngryAtPlayerMessage: 6742
+TreasureHuntDigRequestAnswerFailedMessage: 6509
+TreasureHuntDigRequestAnswerMessage: 6484
+TreasureHuntDigRequestMessage: 6485
+TreasureHuntFinishedMessage: 6483
+TreasureHuntFlagRequestMessage: 6508
+TreasureHuntFlagRequestAnswerMessage: 6507
+TreasureHuntLegendaryRequestMessage: 6499
+TreasureHuntMessage: 6486
+TreasureHuntShowLegendaryUIMessage: 6498
+TeleportOnSameMapMessage: 6048
+GameCautiousMapMovementMessage: 6497
+GameEntitiesDispositionMessage: 5696
+GameMapMovementMessage: 951
+GameContextRemoveElementMessage : 251
+InteractiveElementUpdatedMessage: 5708
+InteractiveUsedMessage: 5745
+InteractiveUseEndedMessage: 6112
+InteractiveUseErrorMessage: 6384
+StatedElementUpdatedMessage: 5709
+PopupWarningMessage: 6134
+ExchangeLeaveMessage: 5628
