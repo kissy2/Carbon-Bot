@@ -91,18 +91,20 @@ def format_cell_for_dofus_pf(cells):
 def get_interactives(layers):
 	interactives = {}
 	doors={}
+	others={}
 	for layer in layers:
 		for cell in layer['cells']:
 			for element in cell['elements']:
 				if 'identifier' in element.keys() and element['identifier'] and 'elementId' in element.keys():
 					if element['elementId'] in rsc.doors:
 						doors[int(cell['cellId'])]=-1
-
 					elif element['elementId'] in rsc.resources:
 						if cell['cellId']%14 in (0,13) and (element['offsetX'] !=0 or element['offsetY'] !=0):
 							continue	
 						interactives[int(cell['cellId'])] = {'xoffset':element['offsetX'],'yoffset':element['offsetY'],'altitude':element['altitude']}
-	return interactives,doors
+					else:
+						others[element['identifier']]=int(cell['cellId'])
+	return interactives,doors,others
 
 
 # def is_using_new_movement_system(cells):
@@ -125,7 +127,7 @@ def generate_single_map_data(map_path, map_positions_with_key):
 	}
 	c='{};{}'.format(map_positions_with_key[map_id]['posX'], map_positions_with_key[map_id]['posY'])
 	x,y,z=format_cells(cells)
-	a,b=get_interactives(layers)
+	a,b,o=get_interactives(layers)
 	map_data = {
 		'id': int(map_id),
 		'coord': c,
@@ -143,7 +145,8 @@ def generate_single_map_data(map_path, map_positions_with_key):
 		's':z['s'],
 		'w':z['w'],
 		'e':z['e'],
-		'd':b
+		'd':b,
+		'o':o
 	}
 	return map_data
 
@@ -182,7 +185,7 @@ def generate_map_info():
 
 	map_info = []
 	elements_info = {}
-	with Pool(cpu_count() - 2) as p:
+	with Pool(cpu_count() - 6) as p:
 		results_list = p.starmap(generate_single_map_data, [(map, map_positions_with_key) for map in maps])
 	
 	with open('D:/sniffbot2.0-light/assets/map_info.json','w') as f:

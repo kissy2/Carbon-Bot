@@ -1,6 +1,8 @@
 /venv/
 /templates/
 /.vscode/
-/assets/allmaps/
-/assets/
-log
+/assets/map_info.json
+/assets/MapScrollActions.json
+/assets/Skills.json
+log*.txt
+run*.bat

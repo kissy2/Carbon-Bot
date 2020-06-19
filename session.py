@@ -45,8 +45,8 @@ class DefaultSession(object):
             self.lst.append(pkt)
         if self.prn:
             result = self.prn(pkt)
-            if result is not None:
-                print(result)
+            # if result is not None:
+                # print(result)
 
 
 class IPSession(DefaultSession):

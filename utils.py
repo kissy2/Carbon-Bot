@@ -3,19 +3,111 @@ from pymongo import MongoClient
 from start import useful
 from math import ceil,floor
 from time import sleep
+from subprocess import Popen,DEVNULL,PIPE
 from pywinauto.application import Application
 from pywinauto.findwindows import find_elements
-import argparse
-import logging
-logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename='log.txt', level=logging.DEBUG)
-(arg:=argparse.ArgumentParser()).add_argument("-n", "--name", required=True, help="ENTER YOUR CHARACTER NAME")
-arg.add_argument("-s", "--server", required=True, help="ENTER YOUR SERVER NAME")
-arg.add_argument("-p", "--port", required=True, help="ENTER DOFUS CLIENT PORT NUMBER")
-arg=vars(arg.parse_args())
-wait,window=lambda x,y:sleep(uniform(x,y)), find_elements(title_re=f'{arg["name"]}')[0]
-collection,app=MongoClient('mongodb://localhost:27017/').admin, Application().connect(handle=window.handle).top_window()
-app.move_window(x=-10, y=0, width=1365, height=768, repaint=True)
-app.minimize()
+from winsound import PlaySound,SND_LOOP,SND_ASYNC,SND_FILENAME,SND_ALIAS
+from start import sniff,Raw,on_receive,on_msg,useful
+from threading import Thread,Event
+import argparse,logging
+global thread,prevd
+# import utils2
+(arg:=argparse.ArgumentParser()).add_argument("-name", "--name", required=True, help="ENTER YOUR CHARACTER NAME")
+arg.add_argument("-server", "--server", required=True, help="ENTER YOUR SERVER NAME")
+arg.add_argument("-port", "--port", required=True, help="ENTER DOFUS CLIENT PORT NUMBER")
+arg.add_argument("-paths", "--path", required=True, help="ENTER NAMES OF PATHS")
+arg.add_argument("-resources", "--resource", required=False, help="ENTER NAMES OF RESOURCES TO COLLECT (NOT REQUIRED)")
+arg.add_argument("-priority", "--priority", required=False, help="ENTER RESOURCES HARVEST ORDER (NOT REQUIRED)")
+arg,wait,e,prevd,accounts=vars(arg.parse_args()),lambda x,y:sleep(uniform(x,y)),Event(),None,{'furye':'','ilyzael':'1','jahash':'9','brumen':'3','meriana':'5','echo':'4','agride':'8'}
+thread,connect,get_window,sniffer,collection=None,lambda hwnd:Application().connect(handle=hwnd.handle).top_window(),lambda text:find_elements(title_re=f'^{text}'),lambda :Thread(target=sniff, kwargs={'stop_filter':lambda p: e.is_set(),'filter':f'ip host {collection.servers.find_one({"_id":arg["server"]},{"_id":0})["ip"]} and tcp port {arg["port"]}', 'lfilter':lambda p: p.haslayer(Raw),'prn':lambda p: on_receive(p, on_msg)}),MongoClient('mongodb://localhost:27017/').admin
+logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'log-{arg["server"]}.txt', level=logging.DEBUG)
+
+def click(cellid,offx=0,offy=0,alt=0,direction=None):
+	global prevd
+	try:
+		limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+11) if odd else (x[0],x[1]+24) ,'n':lambda x,odd:(x[0],x[1]-21) if odd else (x[0],x[1]-8),'w':lambda x,odd:(x[0]-45,x[1]) if odd else (x[0]-18,x[1]),'e':lambda x,odd:(x[0]+18,x[1]) if odd else (x[0]+45,x[1])},251,15,cellid//14,cellid % 14
+		if odd:=line%2:
+			x+=31
+		if prevd=='d':
+			prevd=None
+			app.send_keystrokes('{VK_SHIFT DOWN}')
+			sleep(.1)
+			click(useful['mypos'])
+			sleep(.1)
+			click(0,-1000)
+			sleep(.1)
+		if direction not in (None,'d'):
+			if useful['mapid']==95420418:
+				alt=12
+			x,y=limit[direction]((x,y),odd)
+		prevd=direction
+		logging.info(f'Click : {cellid} , {offx} ,{offy}, {alt}, {direction}, {(x+ceil(row*62.4)+floor(offx*.687), y+floor(15.5*line)+ceil(offy*.6)-8*alt+38)}')
+		app.click(coords=(x+ceil(row*62.4)+floor(offx*.687), y+floor(15.5*line)+ceil(offy*.6)-8*alt))
+	except RuntimeError:
+		logging.error(f'RuntimeError in Click',exc_info=1)
+		sleep(5)
+		click(cellid,offx,offy,alt,direction)
+	except:
+		print('Error in click')
+		logging.error(f'Error in click cellid : {cellid} , offx : {offx} , offy : {offy} , altitude : {alt} , direction : {direction}',exc_info=1)
+def check_connection():
+	global thread
+	try:
+		if window.name and window.name[0:5]=='Dofus':
+			while window.name and window.name[0:5]=='Dofus':
+				logging.critical('Disconnected : Trying to reconnect every 5 minutes')
+				if thread:
+					sleep(240)
+					app.send_keystrokes('~')
+				sleep(2)
+				click(202,40)
+				sleep(2)
+				app.send_keystrokes('^{a}{BACKSPACE}')
+				sleep(2)
+				app.send_keystrokes('thepurgeanarchy'+accounts[arg["server"]])
+				sleep(2)
+				click(230,40,13)
+				sleep(2)
+				app.send_keystrokes('^{a}{BACKSPACE}')
+				sleep(2)
+				app.send_keystrokes('vikings4life~')
+				sleep(52)
+				app.send_keystrokes('~~~')
+			if thread:
+				e.set()
+				thread.join()
+				e.clear()
+			thread=sniffer()
+			thread.start()
+			logging.info('Connected Successfully')
+			return True
+		elif not thread:
+			thread=sniffer()
+			thread.start()
+			app.send_keystrokes('~~~')
+	except:
+		print('Error in check_connection')
+		logging.error('Error in check_connection')
+
+
+def check_admin():
+	if useful['threat']:
+		app.set_focus()
+		if useful['threat']=='high':
+			PlaySound(f'./assets/threat_{useful["threat"]}', SND_LOOP+SND_ASYNC)
+			input("MODERATOR NOTIFICATION RESPOND QUICKLY!!!!")
+			PlaySound(None,0)
+		elif useful['threat']=='medium':
+			for j in range(10):
+				PlaySound(f'./assets/threat_{useful["threat"]}', SND_FILENAME)
+		elif useful['threat']=='low':
+			while useful['dialog']:
+				app.send_keystrokes('{VK_ESCAPE}')
+				sleep(.5)
+			for j in range(5):
+				PlaySound("SystemHand", SND_ALIAS)
+		app.minimize()
+		useful['threat']=None
 
 def shortest(heap,target,c=True):
 	m,ret,i,index,decal=10000,[],0,[],0
@@ -31,7 +123,7 @@ def shortest(heap,target,c=True):
 	for j in index:
 		del heap[j-decal]
 		decal+=1
-	return ret,heap,None 
+	return ret,heap,None  
 
 def pathfinder(start,target,shuffle=True,multipath=False):
 	logging.info(f'Finding a path from {start} to {target}')
@@ -49,7 +141,13 @@ def pathfinder(start,target,shuffle=True,multipath=False):
 							path.append(k[:-1]+path[p][length:])
 			ret=[]
 			for p in path:
-				ret.append([[d[1],y,p[n]['_id']] for n in range(len(p)-1) for y in g(False) for d in p[n][y].items() if d[0]==p[n+1]['_id']])
+				sp=[]
+				for n in range(len(p)-1):
+					for y,d in ((y,d) for y in g(False) for d in p[n][y].items()):
+						if d[0]==p[n+1]['_id']:
+							sp.append([d[1],y,p[n]['_id']])
+							break
+				ret.append(sp)
 			logging.info(f'Path directions : {[x[1] for x in ret[0]]}')
 			return ret if multipath else ret[0]
 		for node in nodes:
@@ -63,18 +161,6 @@ def pathfinder(start,target,shuffle=True,multipath=False):
 							heap.insert(0,[node[0]+[neighbor:=get(k)],f(neighbor['coord'],target['coord'])])
 	return []
 
-def click(cellid,offx=0,offy=0,alt=0,direction=None):
-	try:
-		limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+11) if odd else (x[0],x[1]+24) ,'n':lambda x,odd:(x[0],x[1]-21) if odd else (x[0],x[1]-8),'w':lambda x,odd:(x[0]-45,x[1]) if odd else (x[0]-18,x[1]),'e':lambda x,odd:(x[0]+18,x[1]) if odd else (x[0]+45,x[1]),'d': lambda x,odd:(x[0]+7,x[1]+7)},251,16,cellid//14,cellid % 14
-		if odd:=line%2:
-			x+=31
-		if direction:
-			x,y=limit[direction]((x,y),odd)
-		logging.info(f'Click : {cellid} , {offx} ,{offy}, {alt}, {direction}, {(x+ceil(row*62.4)+floor(offx*.687), y+floor(15.5*line)+ceil(offy*.6)-8*alt+38)}')
-		app.click(coords=(x+ceil(row*62.4)+floor(offx*.687), y+floor(15.5*line)+ceil(offy*.6)-8*alt))
-	except:
-		print('Error in click')
-		logging.error(f'Error in click cellid : {cellid} , offx : {offx} , offy : {offy} , altitude : {alt} , direction : {direction}',exc_info=1)
 
 def switch_coord(c):
 	i=0
@@ -114,25 +200,27 @@ def insight(x0,y0,x1,y1,mat):
 	return True
 
 def get_current_node(cond=0,mapid=None,pos=None):
-	projec={'walkable':1}
-	if pos is None:
-		pos,mapid=useful['mypos'],useful['mapid']
-	if not cond:
-		projec['fightcells']=1
-	elif cond==2:
-		projec['interactives']=1
-	elif cond==3:
-		projec['d']=1
-	for n in collection.nodes.find({'mapid':mapid},projec):
-		if not cond or pos in n['walkable']:
-			return n['_id'] if cond==1 else {'interactives':n['interactives'],'walkable':n['walkable']} if cond==2 else (n['_id'],n['d']) if cond==3 else n['fightcells']
-	print('Error in get_current_node')
-	logging.error(f'Error in get_current_node could not detect node cond : {cond} mapid : {mapid} pos: {pos} true pos : {useful["mypos"]}')
-	return n['_id']
+	try:
+		projec={'walkable':1}
+		if pos is None:
+			pos,mapid=useful['mypos'],useful['mapid']
+		if not cond:
+			projec['fightcells']=1
+		elif cond==2:
+			projec['interactives']=1
+		elif cond==3:
+			projec['d']=1
+		for n in collection.nodes.find({'mapid':mapid},projec):
+			if not cond or pos in n['walkable']:
+				break
+		return n['_id'] if cond==1 else {'interactives':n['interactives'],'walkable':n['walkable']} if cond==2 else (n['_id'],n['d']) if cond==3 else n['fightcells']
+	except:
+		print('Error in get_current_node')
+		logging.error(f'Error in get_current_node cond : {cond} mapid : {mapid} pos: :{pos}')
 
 def get_path(x0,y0,x1,y1,mat,revert=True):
 	try:
-		f,done=lambda x0,y0:abs(x0-x1)+abs(y0-y1),{revert_coord(x0,y0)}
+		f,done,offset=lambda x0,y0:abs(x0-x1)+abs(y0-y1),{revert_coord(x0,y0)},((0, 1), (0, -1), (-1, 0), (1, 0))
 		heap=[[[(x0,y0)],f(x0,y0)]]
 		while heap:
 			best,heap,path=shortest(heap,(x1,y1),False)
@@ -141,8 +229,11 @@ def get_path(x0,y0,x1,y1,mat,revert=True):
 			temp=set()
 			for i in best:
 				c=(i[0][-1][0],i[0][-1][1])
-				for j in ((0, 1), (0, -1), (-1, 0), (1, 0)):
-					d = (i[0][-1][0] + j[0], i[0][-1][1] + j[1])
+				reverted=revert_coord(c[0],c[1])
+				for j in range(4):
+					if not (ooe:=reverted//14%2) and not reverted%14 and j in (1,2) or ooe and reverted%14==13 and j in (0,3) or reverted//14==39 and j in (1,3):
+						continue
+					d = (i[0][-1][0] + offset[j][0], i[0][-1][1] + offset[j][1])
 					if (cellid:=revert_coord(d[0],d[1]))>-1 and cellid<560  and mat[cellid] == 2 and d not in i[0] and c not in temp and c not in done:
 						heap.append([i[0]+[d],f(d[0],d[1])])
 						temp.add(cellid)
@@ -152,56 +243,95 @@ def get_path(x0,y0,x1,y1,mat,revert=True):
 		print('Error in get_path')
 		logging.error(f'Error in get_path x0:{x0}, y0:{y0}, x1:{x1}, y1:{y1}, revert:{revert}\nmat : {mat}',exc_info=1)
 
-def get_closest(x0,y0,check_insight=False):#check insight not implemented
+def get_closest(x0,y0,heap,mat,area,hm=None):
 	try:
-		m,c=600,0
-		for x in useful['fight']['enemyteamMembers'].values():
-			x1,y1=switch_coord(x['cellid'])
-			if (calc:=abs(x0-x1)+abs(y0-y1))<m:
-				m,c=calc,x['cellid']
-		return c
+		to_add,start=(13,14,-13,-14),0
+		temp=[[x,(t:=switch_coord(y['cellid']))[0],t[1]] for x,y in useful['fight']['enemyteamMembers'].items()]
+		temp.sort(key=lambda x:abs(x0-x[1])+abs(y0-x[2]))
+		for _ in range(area):
+			for cell in heap[start:]:
+				for i in range(4):
+					if not((ooe:=cell//14%2) and cell%14==13 and i in (1,2) or not ooe and not cell%14 and i in (0,3)) and (next_cell:=(to_add[i]+1 if ooe and i<2 else to_add[i] -1 if not ooe and i>1 else to_add[i])+cell)<560 and next_cell>-1 and mat[next_cell]==2 and next_cell not in heap:
+						heap.append(next_cell)
+				start+=1
+		heap=[(switch_coord(x),x) for x in heap]
+		return [[x,[(y[-1] if insight(y[0][0],y[0][1],x[1],x[2],mat) else y[-1]*-1,y[0][0],y[0][1]) for y in heap]] for x in temp[:hm]]
 	except:
 		print('Error in get_closest (fight)')
-		logging.error(f'Error in get_closest x0:{x0}, y0:{y0}\nuseful : {useful}',exc_info=1)
+		logging.error(f'Error in get_closest x0 : {x0} , y0 : {y0}\nuseful : {useful}',exc_info=1)
 
-def check_spells(spells,buffs,mat):
+def move(p,c):
+	if useful['fight']['mp'] and p!=c: 
+		counter=5
+		while counter and p==useful['mypos']:
+			click(c)
+			wait(1,2)
+			counter-=1
+	return useful['mypos']
+
+def check_spells(spells,buffs,mat,cond,treasure,lvl):
 	try:
-		enter=True
+		# logging.info(f'New turn {useful["fight"]["round"]} :  called check_spells ap : {useful["fight"]["ap"]} mp : {useful["fight"]["mp"]} health : {useful["lifepoints"]} enemies : { useful["fight"]["enemyteamMembers"]}')
+		enter,used=True,[]
+		app.send_keystrokes('~')
 		while useful['infight'] and useful['fight']['ap']>2 and enter:
-			x0,y0=switch_coord(p:=useful['mypos'])
-			x1,y1=switch_coord(get_closest(x0,y0))
-			for k,v in spells.items():
-				if v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0) >= (calc:=abs(x0-x1)+abs(y0-y1)) and calc >=v['range'][0] and not v['fc'] and (not v['inline'] or y0==y1 or x0==x1) and (not v['sight'] or insight(x0,y0,x1,y1,mat)):
-					c=v['cpt']
-					while c and useful['infight'] and v['ap']<=useful['fight']['ap']:
-						app.send_keystrokes(k)
-						wait(1,1.5)
-						if not useful['infight']:
-							return None,None
-						click(get_closest(x0,y0))
-						v['fc'],c=v['recast'],c-1
-						wait(1.5,3)
-			if useful['infight'] and useful['fight']['ap']>2:
-				if useful['fight']['mp']:
-					if (path:=get_path(x0,y0,x1,y1,mat)[1:-1]):
-						while p==useful['mypos']:
-							click(path[min(useful['fight']['mp'],len(path))-1])
-							wait(2,3)
-					useful['fight']['mp']=0
-				else:
-					for k,v in buffs.items():
-						if not v['fc'] and v['ap']<=useful['fight']['ap']:
-							app.send_keystrokes('{VK_CONTROL DOWN}')
+			logging.info(f'enter while {useful["fight"]["ap"]}')
+			(x0,y0),br=switch_coord(p:=useful['mypos']),0
+			if treasure:
+				if useful['lifepoints']/useful['maxLifePoints']<.2:
+					print('out no hit')
+					break
+				if useful['fight']['mp'] and lvl<80:
+					if path:=get_path(x0,y0,(t:=switch_coord(useful['fight']['enemyteamMembers'][-1]['cellid']))[0],t[1],mat)[1:-1]:
+						x0,y0=switch_coord(p:=move(p,path[min(useful['fight']['mp'],len(path))-1]))
+			for y,x,k,v in ((y,x,k,v) for y in get_closest(x0,y0,[p],mat,useful['fight']['mp']) for k,v in spells.items() for x in y[1]):
+				if useful['infight'] and useful['fight']['ap']>2:
+					if (srange:=v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0))> br and not v['fc']:
+						br=srange
+					if y[0][0] in useful['fight']['enemyteamMembers'] and srange >= (calc:=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])) and calc >=v['range'][0] and not v['fc'] and (not v['inline'] or x[1]==y[0][1] or x[2]==y[0][2]) and (not v['sight'] or x[0]>-1):
+						move(p,t:=abs(x[0]))
+						if useful['mypos']!=t:
+							break
+						c,counter=v['cpt'],2
+						while useful['infight'] and y[0][0] in useful['fight']['enemyteamMembers'] and k not in used and v['ap']<=useful['fight']['ap']:
 							app.send_keystrokes(k)
-							app.send_keystrokes('{VK_CONTROL}')
+							wait(.5,1)
+							v['fc'],ap=v['recast'],useful['fight']['ap']
+							click(useful['fight']['enemyteamMembers'][y[0][0]]['cellid'],offy=-4)
 							wait(1,1.5)
-							click(useful['mypos'])
-							wait(1.5,2)
-							v['fc']=v['recast']
-							if k=='1':
-								break
-					else:
-						enter=False
+							if ap != useful['fight']['ap']: 
+								if not (c:=c-1):
+									used.append(k)
+							else:
+								 if not (counter:=counter-1):
+								 	break
+				else:
+					break
+			if useful['infight'] and useful['fight']['ap']>1:
+				for k,v in buffs.items():
+					if not v['fc'] and v['ap']<=useful['fight']['ap']:
+						app.send_keystrokes('{VK_CONTROL DOWN}')
+						app.send_keystrokes(k)
+						app.send_keystrokes('{VK_CONTROL}')
+						wait(.5,1.5)
+						click(useful['mypos'],offy=-4)
+						wait(.5,1.5)
+						v['fc']=v['recast']
+						if k=='1':
+							break
+				else:
+					enter=False
+		if useful['infight'] and useful['fight']['mp']:
+			# print((f"{useful['fight']['mp']} mp cond {useful['fight']['mp'] if cond else 30}"),'\n',useful['fight']['enemyteamMembers'][y[0][0]]['cellid'])
+			logging.info(f"{useful['fight']['mp']} mp cond {useful['fight']['mp'] if cond else 30} br is {br} \n{get_closest(x0,y0,[p],mat,useful['fight']['mp'] if cond else 30,1)}")
+			m=0 if cond else 600
+			for y,x in ((y,x) for y in get_closest(x0,y0,[p],mat,useful['fight']['mp'] if cond else 30,1) for x in y[1]):
+				calc=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])
+				if mat[abs(x[0])]==2 and (cond or x[0]>-1 and br>=calc and x[0]!=useful['fight']['enemyteamMembers'][y[0][0]]['cellid']) and (calc>m if cond else calc<m):
+					m,x1,y1=calc,x[1],x[2]
+			# print(f"move pos {p} path {get_path(x0,y0,x1,y1,mat)}","cell",useful['fight']['mp'],len(get_path(x0,y0,x1,y1,mat))-1)
+			move(p,(t:=get_path(x0,y0,x1,y1,mat))[min(useful['fight']['mp'],len(t)-1)])
+			useful['fight']['mp']=0
 		for xx in (spells,buffs):
 			for x in xx.values():
 				if x['fc']:
@@ -212,36 +342,107 @@ def check_spells(spells,buffs,mat):
 		print('Error in check_spells')
 		logging.error(f'Error in check_spells\nuseful : {useful}\nspells : {spells}\nbuffs : {buffs}\nmat : {mat}',exc_info=1)
 
-def fight(first_fight=False):
+def fight(threshold=1,treasure=False,lvl=1):
 	try:
 		logging.info(f'Enter fight\nuseful : {useful}')
-		if first_fight:
-			click(557,offy=20,offx=15)
-			wait(.25,.75)
-			app.send_keystrokes('+{(} ')
-			wait(.75,1)
-			app.send_keystrokes('^{a}/s~')
+		app.send_message(257,16)
+		try:
+			if not useful['fight']['lock']:
+				click(557,offy=20,offx=15)
+				wait(.25,.75)
+			if not useful['fight']['spectator']:
+				app.send_keystrokes('^{ }')
+				wait(.75,1)
+				app.send_keystrokes('^{a}{BACKSPACE}')
+				wait(1,1.5)
+				app.send_keystrokes('/s~')
+				click(0,-1000)
+				app.send_keystrokes('{VK_NUMPAD8}')
+				wait(.75,1)
+		except:
+			logging.error('lock spec error')
 		wait(1.5,2)
-		m,mat,prev,mapid=600,get_current_node(),useful['mypos'],useful['mapid']
-		for c in useful['fight']['positionsForDefenders'] if useful['fight']['defenderId'] == useful['contextualId'] else useful['fight']['positionsForChallengers']:
-			(x0,y0),(x1,y1)=switch_coord(useful['fight']['enemyteamMembers'][-1]['cellid']),switch_coord(c)
-			if (calc:=abs(x0-x1)+abs(y0-y1))<m:
-				index,m=c,calc
-		if prev!= index:
-			click(index)
-			wait(.5,.75)
-		spells,buffs = {'1': {'range': (6, 10, True),'ap':4 ,'cpt' : 1 ,'recast': 3, 'fc': 0, 'sight': True,'inline': False}, '2': {'range': (1, 8, True),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True}, '3': {'range': (5, 10, True),'ap':3, 'cpt' : 1 , 'recast': 3, 'fc': 1, 'sight': True, 'inline': False}, '4': {'range': (1, 10, True),'ap':2, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}, '5': {'range': (1, 12, True),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}, '6': {'range': (1, 7, True),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': False, 'inline': False}},{'1' : {'ap':3, 'recast':5,'fc':0},'2' : {'ap':3, 'recast':6,'fc':0},'3' : {'ap':2, 'recast':5,'fc':0}}
+		mat,prev,mapid=get_current_node(),useful['mypos'],useful['mapid']
+		logging.info(f'Fight mat {mat}')
+		try:
+			enemy_level=0
+			for x in useful['fight']['enemyteamMembers'].values():
+				enemy_level+= x['level']
+			m=0 if (cond:=enemy_level>threshold*useful['my_level']) else 600
+			for c in useful['fight']['positionsForDefenders'] if useful['fight']['defenderId'] == useful['contextualId'] else useful['fight']['positionsForChallengers']:
+				(x0,y0),(x1,y1)=switch_coord(useful['fight']['enemyteamMembers'][-1]['cellid']),switch_coord(c)
+				calc=abs(x0-x1)+abs(y0-y1)
+				if (calc>m if cond else calc<m):
+					index,m=c,calc
+			if prev!= index:
+				click(index)
+				wait(.5,.75)
+		except:
+			cond=None
+			logging.critical('too late for positioning',exc_info=1)
+		spells,buffs= (#spells
+						{'1': {'range': (6, 8, True),'ap':4 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': True,'inline': False},
+						 '2': {'range': (1, 8, False),'ap':3, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
+			 			 '3': {'range': (1, 12, True),'ap':3 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': True,'inline': False},
+						 '4': {'range': (1, 7, True),'ap':3 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': False,'inline': False}
+						 },
+					  # {'1': {'range': (6, 10, True),'ap':4 ,'cpt' : 1 ,'recast': 3, 'fc': 0, 'sight': True,'inline': False},
+					  #  '2': {'range': (1, 8, True),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True}, 
+					  #  '3': {'range': (2, 6, True),'ap':4, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}, 
+					  #  '4': {'range': (5, 10, True),'ap':3, 'cpt' : 1 , 'recast': 3, 'fc': 1, 'sight': True, 'inline': False}, 
+					  #  '5': {'range': (1, 12, True),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}},
+					   #buffs
+					   {'1' : {'ap':3, 'recast':5,'fc':0},
+						'2' : {'ap':3, 'recast':6,'fc':0},
+						'3' : {'ap':2, 'recast':5,'fc':0}}) if arg['name']=='Unfriendly' else(
+						#spells
+						{'1': {'range': (6, 8, True),'ap':4 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': True,'inline': False},
+						 '2': {'range': (1, 8, False),'ap':3, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
+			 			 '3': {'range': (1, 12, True),'ap':3 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': True,'inline': False},
+						 #'4': {'range': (1, 6, True),'ap':3 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': False,'inline': False}
+						 },
+						#buffs
+						{'1' : {'ap':3, 'recast':5,'fc':0},
+						 '2' : {'ap':2, 'recast':5,'fc':0},
+						 '3' : {'ap':3, 'recast':6,'fc':0},
+						 '4' : {'ap':2, 'recast':5,'fc':0}}) if arg['name']=='Raliick' else(
+						{'1': {'range': (1, 4, False),'ap':3, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True}, 
+						 '2': {'range': (1, 8, True),'ap':3 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': True,'inline': False}},
+						#buffs
+						{'1' : {'ap':3, 'recast':5,'fc':0}})
 		while useful['infight']:
 			app.send_keystrokes('{F1}')
-			while 'turn' in useful['fight'].keys() and not useful['fight']['turn']:
-				wait(1.5,3)
-			spells,buffs=check_spells(spells,buffs,mat)
+			while not wait(1.5,3) and 'turn' in useful['fight'].keys() and not useful['fight']['turn']:
+				check_connection()
+				check_admin()
+				logging.info('Waiting for turn')
+			spells,buffs=check_spells(spells,buffs,mat,cond,treasure,lvl)
 		prev=useful['mypos']
 		wait(2,3)
-		app.send_keystrokes('~')
-		wait(1,1.5)
-		app.send_keystrokes('~')
+		for _ in range(3):
+			click(0,-1000)
+			app.send_keystrokes('~')
 		return prev
 	except:
 		print('Error in fight')
 		logging.error(f'Error in fight\nuseful : {useful}',exc_info=1)
+
+while Popen(args='REG QUERY HKCU\Environment /v eca',stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1][-2]=='1':
+	wait(1,2)
+Popen('setx eca 1',stdout=DEVNULL)
+if not (window:=get_window(arg['name'])):
+	while not (window:=get_window('Ankama Launcher$')):
+		Popen('call Launcher.lnk',stdout=DEVNULL,shell=True)
+		sleep(30)
+	app=connect(window[0])
+	app.set_focus()
+	while not (window:=get_window('Dofus 2')) and not (window:=get_window(arg['name'])):
+		click(642,300)
+		sleep(45)
+	app.minimize()
+window=window[0]
+app=connect(window)
+app.move_window(x=-10, y=0, width=1365, height=768, repaint=True)
+# app.minimize()
+check_connection()
+Popen('setx eca 0',stdout=DEVNULL)

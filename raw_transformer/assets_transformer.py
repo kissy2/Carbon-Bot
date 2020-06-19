@@ -100,6 +100,3 @@ if __name__ == '__main__':
     
     print('Done in', time.time() - start)
     print('Total time: {} minutes, {}s'.format(round(time.time() - init_start) // 60, round(time.time() - init_start) % 60))
-
-    'python raw_transformer\assets_transformer.py raw_transformer\input'
-    'python raw_transformer\assets_transformer.py D:\Jeux\Misc\Dofus2'

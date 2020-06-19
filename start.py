@@ -3,16 +3,10 @@ from math import ceil
 from scapy.all import sniff
 from scapy.all import Raw, IP, TCP
 from data import Data
-from protocol import read, msg_from_id, types, write,useful
-
-
-
-global wait, flag, next_seq, last10
+from protocol import read, msg_from_id, types, write,useful,logging
+global wait, flag, next_seq, last10,error_count
 wait, flag, next_seq, last10 = [], False, False, []
-
-
-
-
+from sys import exc_info
 class Buffer(Data):
     def end(self):
         del self.data[: self.pos]
@@ -81,7 +75,6 @@ class Msg:
             return "next"
         else:
             if id == 2:
-                print("new buf tnikna ?")
                 newbuffer = Buffer(data.readByteArray())
                 newbuffer.uncompress()
                 msg = Msg.fromRaw(newbuffer, from_client)
@@ -111,7 +104,12 @@ class Msg:
 
     @property
     def msgType(self):
-        return msg_from_id[self.id]
+        try:
+            return msg_from_id[self.id]
+        except:
+            print('key error')
+            logging.critical(f'Error in start key error {self.id}')
+
 
     def json(self):
         if not hasattr(self, "parsed"):
@@ -193,5 +191,9 @@ def on_receive(pa, action):
             msg = Msg.fromRaw(buf, direction)
 
 def on_msg(msg):
-    Msg.from_json(msg.json())
+    try:
+        Msg.from_json(msg.json())
+    except:
+        print('Error in start')
+        logging.info(f'Error in Start {exc_info()}')
 
