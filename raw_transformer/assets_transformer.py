@@ -74,7 +74,7 @@ if __name__ == '__main__':
     init_start = time.time()
     with Pool(cpu_count() - 1) as p:
        p.map(d2o_unpack.unpack, [[file_path] for file_path in files_paths['d2o']])  # Items, Recipes, Effects...
-       p.map(d2p_unpack.unpack, [[file_path] for file_path in files_paths['d2p']])
+       # p.map(d2p_unpack.unpack, [[file_path] for file_path in files_paths['d2p']])
        p.map(d2i_unpack.unpack, [[file_path] for file_path in files_paths['d2i']])  # i18n_fr
     print('Done unpacking in ', time.time() - init_start)
 
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     fmable_stats.generate()
     server_2_id.generate()
     itemid_to_itemiconid.generate()
-    maps_unpacker.generate_map_info()
+    # maps_unpacker.generate_map_info()
 
     shutil.copyfile(os.path.abspath(os.path.join(os.path.dirname(__file__), '.', 'output', 'Skills.json')), 'D:/sniffbot2.0-light/assets/Skills.json')
     shutil.copyfile(os.path.abspath(os.path.join(os.path.dirname(__file__), '.', 'output', 'MapScrollActions.json')), 'D:/sniffbot2.0-light/assets/MapScrollActions.json')

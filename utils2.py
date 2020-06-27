@@ -139,9 +139,11 @@ def set_paths():
 				t=findall('map =.*gather = true',g.read())
 				path={'_id':p[:p.index('.')],'zaap':'%s,%s'%(t[0][f(t[0])+1:(sep:=f(t[0],False))], t[0][sep+1:f(t[0],s=sep)]) ,'nodes':[]}
 				for x in t[1:]:
-					if len(l:=list(collection.nodes.find({'coord':(c:=([ int(x[f(x)+1:(sep:=f(x,False))]), int(x[sep+1:f(x,s=sep)])])),'interactives':{'$ne':{}} if ('xp' or 'zaaps') not in p else {}},{'worldmap'})))>1:
-						print(f'multi nodes found on this map {c}')
-						if worldmap:=input('write worldmap index if you want to filter by worldmap else hit enter : '):
+					lis={'coord':(c:=([int(x[f(x)+1:(sep:=f(x,False))]), int(x[sep+1:f(x,s=sep)])]))}
+					if ('xp' or 'zaaps') not in p:
+						lis['interactives']={'$ne':{}}
+					if len(l:=list(collection.nodes.find(lis,{'worldmap'})))>1:
+						if worldmap:=input(f'multi nodes found on this map {c}\n{l}\nwrite worldmap index if you want to filter by worldmap else hit enter : '):
 							if len(l:=[x for x in l if x['worldmap']== int(worldmap)])==1:
 								path['nodes'].append(l[0]['_id'])
 								continue
@@ -248,6 +250,7 @@ def set_treasure_ids():
 		id_dofus_sama[t[t.index('>')+1:t.index('<')]]=(t:=sub("&#(\d+);", lambda m: chr(int(m.group(1))), x.lower()))[:t.index('"')]
 	collection.dofus_sama.delete_many({})
 	collection.named_ids.delete_many({})
+	collection.treasure.delete_many({})
 	with open('./raw_transformer/output/PointOfInterest.json', 'r', encoding='utf8') as f:
 		with open('./raw_transformer/output/i18n_en.json', 'r', encoding='utf8') as g:
 			texts=load(g)['texts']
@@ -273,17 +276,48 @@ def set_treasure_ids():
 					collection.treasure.update_one({'_id':id},{'$set':{args[2][0]:hints}})
 				else:
 					collection.treasure.insert_one({'_id':id,args[2][0]:hints})
-		# collection.treasure.delete_many({})#first time
 		with concurrent.futures.ThreadPoolExecutor(max_workers=2) as e:
 		    e.map(dofus_map,((x,y,d) for x in range(-88,50) for y in range(-88,50) for d in directions.items()))
 	else:
+		with open('./assets/treasure.json', 'r', encoding='utf8') as f:
+			collection.treasure.insert_many(load(f))
 		for x in collection.treasure.find({}):
 			for d in directions:
 				if d in x:
 					collection.treasure.update_one({'_id':x['_id']},{'$set':{d:[{'id':y,'x':x['x'],'y':x['y']} for x in x[d] for y in (id_dofus_map[x['n']] if x['n'] in id_dofus_map else [])]}})
 		with open('./assets/hints.json', 'r', encoding='utf8') as f:
+			directions={0:('e','right','4'),4:('w','left','0'),2:('s','bottom','6'),6:('n','top','2')}
 			for x in load(f):
-				pass
+				if len(l:=list(collection.nodes.find({'coord':[int((t:=x['coord'].split(','))[0]),int(t[1])],'worldmap':1},{'_id','worldmap'})))>1:
+					last=input(f'{l}\nChoose a node to update')
+				else:
+					last=l[0]['_id']
+				hint=collection.named_ids.find_one({'name':x['name']},{'_id'})['_id']
+				for d in directions.items():
+					start,i=last,10	
+					while i and (cur:=collection.nodes.find_one({'_id':start}))[d[1][0]]:
+						if last==start:
+							x,y=cur['coord'][0],cur['coord'][1]
+						for start in cur[d[1][0]]:
+							#not ideal check exact path not first node with map change option
+							if (cur:=collection.nodes.find_one({'_id':start},{d[1][0],'coord'}))[d[1][0]]:
+								break
+						else:
+							i=1
+						if temp2:=collection.treasure.find_one({'_id':(id:=f'{cur["coord"][0]},{cur["coord"][1]}')}):
+							if directions[d[0]][2] in temp2:
+								for t in temp2[directions[d[0]][2]]:
+									if t['id']==hint:
+										t['x'],t['y']=x,y
+										break
+								else:
+									temp2[directions[d[0]][2]].append({'id':hint,'x':x,'y':y})
+							else:
+								temp2[directions[d[0]][2]]=[{'id':hint,'x':x,'y':y}]
+							collection.treasure.update_one({'_id':id},{'$set':{directions[d[0]][2]:temp2[directions[d[0]][2]]}})
+						else:
+							collection.treasure.insert_one({'_id':id},{'$set':{directions[d[0]][2]:[{'id':hint,'x':x,'y':y}]}})
+						i-=1
 # create_nodes()
 # link_nodes()
 # set_doors_hardcode()

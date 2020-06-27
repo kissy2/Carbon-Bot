@@ -265,30 +265,25 @@ def move(p,c):
 		counter=5
 		while counter and p==useful['mypos']:
 			click(c)
+			click(c)
 			wait(1,2)
 			counter-=1
 	return useful['mypos']
 
-def check_spells(spells,buffs,mat,cond,treasure,lvl):
+def check_spells(spells,buffs,mat,treasure):
 	try:
 		# logging.info(f'New turn {useful["fight"]["round"]} :  called check_spells ap : {useful["fight"]["ap"]} mp : {useful["fight"]["mp"]} health : {useful["lifepoints"]} enemies : { useful["fight"]["enemyteamMembers"]}')
 		enter,used=True,[]
 		app.send_keystrokes('~')
 		while useful['infight'] and useful['fight']['ap']>2 and enter:
 			logging.info(f'enter while {useful["fight"]["ap"]}')
-			(x0,y0),br=switch_coord(p:=useful['mypos']),0
-			if treasure:
-				if useful['lifepoints']/useful['maxLifePoints']<.2:
-					print('out no hit')
-					break
-				if useful['fight']['mp'] and lvl<80:
-					if path:=get_path(x0,y0,(t:=switch_coord(useful['fight']['enemyteamMembers'][-1]['cellid']))[0],t[1],mat)[1:-1]:
-						x0,y0=switch_coord(p:=move(p,path[min(useful['fight']['mp'],len(path))-1]))
+			(x0,y0)=switch_coord(p:=useful['mypos'])
+			if treasure and useful['lifepoints']/useful['maxLifePoints']<.2:
+				print('out no hit')
+				break
 			for y,x,k,v in ((y,x,k,v) for y in get_closest(x0,y0,[p],mat,useful['fight']['mp']) for k,v in spells.items() for x in y[1]):
 				if useful['infight'] and useful['fight']['ap']>2:
-					if (srange:=v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0))> br and not v['fc']:
-						br=srange
-					if y[0][0] in useful['fight']['enemyteamMembers'] and srange >= (calc:=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])) and calc >=v['range'][0] and not v['fc'] and (not v['inline'] or x[1]==y[0][1] or x[2]==y[0][2]) and (not v['sight'] or x[0]>-1):
+					if y[0][0] in useful['fight']['enemyteamMembers'] and v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0) >= (calc:=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])) and calc >=v['range'][0] and not v['fc'] and (not v['inline'] or x[1]==y[0][1] or x[2]==y[0][2]) and (not v['sight'] or x[0]>-1):
 						move(p,t:=abs(x[0]))
 						if useful['mypos']!=t:
 							break
@@ -307,31 +302,38 @@ def check_spells(spells,buffs,mat,cond,treasure,lvl):
 								 	break
 				else:
 					break
-			if useful['infight'] and useful['fight']['ap']>1:
+			if useful['infight'] and useful['fight']['mp']:
+				logging.info(f"mp {useful['fight']['mp']} \n{get_closest(x0,y0,[p],mat,useful['fight']['mp'],50)}")
+				m=600
+				for y,x,v in ((y,x,v) for y in get_closest(x0,y0,[p],mat,50,1) for x in y[1] for v in spells.values()) :
+					calc=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])
+					if mat[abs(x[0])]==2 and x[0]>-1 and v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0)>=calc and (not v['inline'] or x[1]==y[0][1] or x[2]==y[0][2]) and x[0]!=useful['fight']['enemyteamMembers'][y[0][0]]['cellid'] and calc<m:
+						m,x1,y1=calc,x[1],x[2]
+						move(p,(t:=get_path(x0,y0,x1,y1,mat))[(tm:=min(useful['fight']['mp'],(length:=len(t)-1)))])
+						if length>useful['fight']['mp'] and not buffs['1']['fc'] and buffs['1']['ap']<=useful['fight']['ap']:
+							# print('in',t,useful['mypos'],useful['fight'])
+							app.send_keystrokes('{VK_CONTROL DOWN}')
+							app.send_keystrokes('1')
+							app.send_keystrokes('{VK_CONTROL}')
+							wait(.5,1.5)
+							t=t[tm:]
+							print(t)
+							click(t[min(6 if useful['my_level']>132 else 5,len(t)-1)],offy=-4)
+							wait(.5,1.5)
+							buffs['1']['fc']=buffs['1']['recast']
+						break
+				useful['fight']['mp']=0
+			elif useful['infight'] and useful['fight']['ap']>1:
 				for k,v in buffs.items():
-					if not v['fc'] and v['ap']<=useful['fight']['ap']:
+					if k!='1' and not v['fc'] and not v['cpt'] and v['ap']<=useful['fight']['ap']:
 						app.send_keystrokes('{VK_CONTROL DOWN}')
 						app.send_keystrokes(k)
 						app.send_keystrokes('{VK_CONTROL}')
 						wait(.5,1.5)
 						click(useful['mypos'],offy=-4)
 						wait(.5,1.5)
-						v['fc']=v['recast']
-						if k=='1':
-							break
-				else:
-					enter=False
-		if useful['infight'] and useful['fight']['mp']:
-			# print((f"{useful['fight']['mp']} mp cond {useful['fight']['mp'] if cond else 30}"),'\n',useful['fight']['enemyteamMembers'][y[0][0]]['cellid'])
-			logging.info(f"{useful['fight']['mp']} mp cond {useful['fight']['mp'] if cond else 30} br is {br} \n{get_closest(x0,y0,[p],mat,useful['fight']['mp'] if cond else 30,1)}")
-			m=0 if cond else 600
-			for y,x in ((y,x) for y in get_closest(x0,y0,[p],mat,useful['fight']['mp'] if cond else 30,1) for x in y[1]):
-				calc=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])
-				if mat[abs(x[0])]==2 and (cond or x[0]>-1 and br>=calc and x[0]!=useful['fight']['enemyteamMembers'][y[0][0]]['cellid']) and (calc>m if cond else calc<m):
-					m,x1,y1=calc,x[1],x[2]
-			# print(f"move pos {p} path {get_path(x0,y0,x1,y1,mat)}","cell",useful['fight']['mp'],len(get_path(x0,y0,x1,y1,mat))-1)
-			move(p,(t:=get_path(x0,y0,x1,y1,mat))[min(useful['fight']['mp'],len(t)-1)])
-			useful['fight']['mp']=0
+						v['fc'],v['cpt']=v['recast'],v['cpt']-1
+				enter=False
 		for xx in (spells,buffs):
 			for x in xx.values():
 				if x['fc']:
@@ -342,7 +344,7 @@ def check_spells(spells,buffs,mat,cond,treasure,lvl):
 		print('Error in check_spells')
 		logging.error(f'Error in check_spells\nuseful : {useful}\nspells : {spells}\nbuffs : {buffs}\nmat : {mat}',exc_info=1)
 
-def fight(threshold=1,treasure=False,lvl=1):
+def fight(treasure=False):
 	try:
 		logging.info(f'Enter fight\nuseful : {useful}')
 		app.send_message(257,16)
@@ -365,20 +367,15 @@ def fight(threshold=1,treasure=False,lvl=1):
 		mat,prev,mapid=get_current_node(),useful['mypos'],useful['mapid']
 		logging.info(f'Fight mat {mat}')
 		try:
-			enemy_level=0
-			for x in useful['fight']['enemyteamMembers'].values():
-				enemy_level+= x['level']
-			m=0 if (cond:=enemy_level>threshold*useful['my_level']) else 600
+			m=600
 			for c in useful['fight']['positionsForDefenders'] if useful['fight']['defenderId'] == useful['contextualId'] else useful['fight']['positionsForChallengers']:
 				(x0,y0),(x1,y1)=switch_coord(useful['fight']['enemyteamMembers'][-1]['cellid']),switch_coord(c)
-				calc=abs(x0-x1)+abs(y0-y1)
-				if (calc>m if cond else calc<m):
+				if (calc:=abs(x0-x1)+abs(y0-y1))<m:
 					index,m=c,calc
 			if prev!= index:
 				click(index)
 				wait(.5,.75)
 		except:
-			cond=None
 			logging.critical('too late for positioning',exc_info=1)
 		spells,buffs= (#spells
 						{'1': {'range': (6, 8, True),'ap':4 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': True,'inline': False},
@@ -396,27 +393,19 @@ def fight(threshold=1,treasure=False,lvl=1):
 						'2' : {'ap':3, 'recast':6,'fc':0},
 						'3' : {'ap':2, 'recast':5,'fc':0}}) if arg['name']=='Unfriendly' else(
 						#spells
-						{'1': {'range': (6, 8, True),'ap':4 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': True,'inline': False},
-						 '2': {'range': (1, 8, False),'ap':3, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
-			 			 '3': {'range': (1, 12, True),'ap':3 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': True,'inline': False},
-						 #'4': {'range': (1, 6, True),'ap':3 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': False,'inline': False}
-						 },
-						#buffs
-						{'1' : {'ap':3, 'recast':5,'fc':0},
-						 '2' : {'ap':2, 'recast':5,'fc':0},
-						 '3' : {'ap':3, 'recast':6,'fc':0},
-						 '4' : {'ap':2, 'recast':5,'fc':0}}) if arg['name']=='Raliick' else(
-						{'1': {'range': (1, 4, False),'ap':3, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True}, 
-						 '2': {'range': (1, 8, True),'ap':3 ,'cpt' : 2 ,'recast': 0, 'fc': 0, 'sight': True,'inline': False}},
-						#buffs
-						{'1' : {'ap':3, 'recast':5,'fc':0}})
+						{'1': {'range': (1, 3, False),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
+						 '2': {'range': (1, 5, False),'ap':4, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True}},
+						#buffs/debuffs
+						{'1' : {'ap':5, 'recast':2,'fc':0,'cpt':1},
+						 '2' : {'ap':3, 'recast':0,'fc':0,'cpt':2},
+						})
 		while useful['infight']:
 			app.send_keystrokes('{F1}')
 			while not wait(1.5,3) and 'turn' in useful['fight'].keys() and not useful['fight']['turn']:
 				check_connection()
 				check_admin()
 				logging.info('Waiting for turn')
-			spells,buffs=check_spells(spells,buffs,mat,cond,treasure,lvl)
+			spells,buffs=check_spells(spells,buffs,mat,treasure)
 		prev=useful['mypos']
 		wait(2,3)
 		for _ in range(3):

@@ -1,5 +1,5 @@
 title furye&cd/dd:/sniffbot2.0-light&&"venv/scripts/activate"&&py launch.py ^
--name Unfriendly ^
+-name Bpgbta ^
 -server furye ^
 -port 5555 ^
 -paths aspen,icefish,mandrake,elm,cod ^

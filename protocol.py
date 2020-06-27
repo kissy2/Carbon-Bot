@@ -765,7 +765,6 @@ def read(type, data: Data):
 		#     id = 6134
 		#     logging.warning(ans)
 		elif ans["__type__"] == "TextInformationMessage":
-			print(ans)
 			if ans["msgId"] in (436,437):
 				useful["wait"]=int(ans["parameters"][0])
 

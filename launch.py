@@ -7,13 +7,13 @@ if release()=='10':
 	notify=ToastNotifier()
 func=lambda x:collection.nodes.find_one({'mapid':x},{'coord'})
 
-def move(nid,zaap=False,sneaky=None,treasure=False):
+def move(nid,zaap=False,sneaky=None,treasure=False,exit=None):
 	if zaap:
 		n,m=func(nid),1000
 		for x in collection.zaaps.find({}):
 			if (calc:=abs(int((c:=x['_id'].split(','))[0])-n['coord'][0])+abs(int(c[1])-n['coord'][1]))<m:
 				name,m=x['name'],calc	
-		if teleport(name):
+		if teleport(name,exit):
 			return
 		nid=n['_id']
 	for e in (p:=pathfinder((c:=get_current_node(1)),nid,shuffle=False)):
@@ -23,17 +23,17 @@ def move(nid,zaap=False,sneaky=None,treasure=False):
 		if sneaky in useful['map_npc']:
 			logging.info(f'Treasure Hunt : sneaky is here {(s:=get_current_node(1))}')
 			return s
-	if treasure and not p and nid !=c:#remove hunt
-		move(128452097,True)
-		logging.info('dump hunt')
-		while 'hunt' in useful:
-			if 'wait' in useful:
-				logging.info(f'sleeping in move {useful["wait"]}')
-				sleep(60*useful['wait'])
-			click(125,offy=-2*35)
-			sleep(1)
-			app.send_keystrokes('~')
-		del useful['wait']
+	# if treasure and not p and nid !=c:#remove hunt
+	# 	move(128452097,True)
+	# 	logging.info('dump hunt')
+	# 	while 'hunt' in useful:
+	# 		if 'wait' in useful:
+	# 			logging.info(f'sleeping in move {useful["wait"]}')
+	# 			sleep(60*useful['wait'])
+	# 		click(125,offy=-2*35)
+	# 		sleep(1)
+	# 		app.send_keystrokes('~')
+	# 	del useful['wait']
 	return nid
 
 def treasure_hunt(lvl=20,supervised=False):
@@ -150,7 +150,7 @@ def treasure_hunt(lvl=20,supervised=False):
 		try:
 			logging.info(f'Treasure Hunt has began')
 			if 'hunt' not in useful:
-				move(128452097,True)
+				move(128452097,zaap=True,exit=True)
 				while 'hunt' not in useful:
 					click(0,-1000)
 					click(288)
@@ -242,7 +242,7 @@ def wrapper(fun, *args, **kwargs):
 		return fun(*args, **kwargs)
 	return wrapped
 
-def teleport(text):
+def teleport(text,exit=None):
 	logging.info(f'Teleporting to {text}')
 	app.send_keystrokes('{VK_SHIFT}')
 	app.send_message(257,16)
@@ -263,6 +263,10 @@ def teleport(text):
 		check_admin()
 		if not (count:=count-1):
 			logging.warning(f'Could Not Teleport To HavenBag From This Map{useful["mapid"]}')
+			if exit:
+				app.send_keystrokes('1')
+				sleep(3)
+				teleport(text,True)
 			return True
 	logging.info(f'Enter Havenbag ,{useful["mapid"]}')
 	counter=0
@@ -353,7 +357,7 @@ def wait_check_fight(tmin,tmax,cond=0,Treasure=False,lvl=20):
 		sleep(uniform(tmin,tmax))
 		check_admin()
 		if useful['infight'] and cond!=-1:
-			pos=fight(treasure=Treasure,lvl=lvl)
+			pos=fight(treasure=Treasure)
 			if not useful['fight']['alive']:
 				logging.info('Fight Lost')
 				sleep(uniform(7,15))
@@ -540,18 +544,15 @@ def xp(zone='xp_incarnam',threshold=1):
 				while loop:
 					temp=deepcopy(useful['map_mobs']).items()
 					if useful['lifepoints']/useful['maxLifePoints']<.8:
-						app.send_keystrokes('^{ }')
-						wait_check_fight(.75,1)
-						app.send_keystrokes('^{a}{BACKSPACE}')
-						wait_check_fight(.75,1)
-						app.send_keystrokes('/sit~')
 						logging.info('sleeping')
-						sleep((useful['maxLifePoints']-useful['lifepoints'])/2.5)
+						sleep((useful['maxLifePoints']-useful['lifepoints'])/2)
 						logging.info('done sleeping')
 						useful['lifepoints']=useful['maxLifePoints']
 					for x,y in temp:
 						if 'alllevel' in y and y['alllevel']<useful['my_level']*threshold:
 							counter,state=4,None
+							app.send_keystrokes('{VK_SHIFT}')
+							app.send_message(257,16)
 							click(y['cellId'])
 							while not state and counter and x in useful['map_mobs']:
 								state=wait_check_fight(2,3)
@@ -563,11 +564,10 @@ def xp(zone='xp_incarnam',threshold=1):
 					else:
 						loop=False
 
-
 # execute(arg['path'].split(','),arg['resource'].split(','),arg['priority'].split(','))
-treasure_hunt(200 if arg['name']=='Unfriendly' else 140,False)
-# xp('astrub_fields')
-
+treasure_hunt(40,1)
+# xp(zone='xp_goball',threshold=1)
+# import utils2
 # useful={'hunt':{'currentstep':{'__type__': 'TreasureHuntStepFollowDirectionToHint', 'direction': 0, 'npcId': 2669}}}
 # directions={0:('e','right','4'),4:('w','left','0'),2:('s','bottom','6'),6:('n','top','2')}
 # sneaky,t=useful['hunt']['currentstep']['npcId'],{directions[useful['hunt']['currentstep']['direction']][0],'d'}
