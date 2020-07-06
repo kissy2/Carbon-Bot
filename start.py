@@ -4,7 +4,7 @@ from scapy.all import sniff
 from scapy.all import Raw, IP, TCP
 from data import Data
 from protocol import read, msg_from_id, types, write,useful,logging
-global wait, flag, next_seq, last10,error_count
+global wait, flag, next_seq, last10
 wait, flag, next_seq, last10 = [], False, False, []
 from sys import exc_info
 class Buffer(Data):

@@ -14,9 +14,9 @@ if release()=='10':
 	notify=ToastNotifier()
 from sys import argv
 from os import system
-system(f'del log-{argv[4]}.txt')
-logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'log-{argv[4]}.txt', level=logging.DEBUG)
-logging.raiseExceptions = False
+# system(f'del log-{argv[4]}.txt')
+# logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'log-{argv[4]}.txt', level=logging.DEBUG)
+# logging.raiseExceptions = False
 with (Path(__file__).parent / "protocol.pk").open("rb") as f:
 	types = pickle.load(f)
 	msg_from_id = pickle.load(f)
@@ -532,8 +532,8 @@ def read(type, data: Data):
 			useful['hunt']['flags'] = ans['flags']
 
 		elif ans["__type__"]=="TreasureHuntFinishedMessage":
+			logging.info('hunt finished')
 			del useful["hunt"]
-
 		elif ans["__type__"] == "GameFightShowFighterMessage":
 			id = int(ans["informations"]["contextualId"])
 			if id == useful["contextualId"]:
