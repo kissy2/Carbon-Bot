@@ -289,34 +289,40 @@ def set_treasure_ids():
 			directions={0:('e','right','4'),4:('w','left','0'),2:('s','bottom','6'),6:('n','top','2')}
 			for x in load(f):
 				if len(l:=list(collection.nodes.find({'coord':[int((t:=x['coord'].split(','))[0]),int(t[1])],'worldmap':1},{'_id','worldmap'})))>1:
-					last=input(f'{l}\nChoose a node to update')
+					last=input(f'{l}\nChoose a node to update :\n>> ')
 				else:
 					last=l[0]['_id']
-				hint=collection.named_ids.find_one({'name':x['name']},{'_id'})['_id']
+				hint,start_coord,direction,test_coord=collection.named_ids.find_one({'name':x['name']},{'_id'})['_id'],loads(x['start']),x['direction'],lambda x,y,x1,y1,d:x>=x1 if d=='4' else x<=x1 if d=='0' else y<=y1 if d=='2' else y>=y1
 				for d in directions.items():
 					start,i=last,10	
 					while i and (cur:=collection.nodes.find_one({'_id':start}))[d[1][0]]:
 						if last==start:
 							x,y=cur['coord'][0],cur['coord'][1]
+						m=0
 						for start in cur[d[1][0]]:
-							#not ideal check exact path not first node with map change option
-							if (cur:=collection.nodes.find_one({'_id':start},{d[1][0],'coord'}))[d[1][0]]:
-								break
-						else:
+							#not ideal check exact path
+							if (temp:=collection.nodes.find_one({'_id':start},{d[1][0],'coord','walkable'}))[d[1][0]] and (length:=len(temp['walkable'])) >m:
+								cur,m=temp,length
+						if not m:
 							i=1
-						if temp2:=collection.treasure.find_one({'_id':(id:=f'{cur["coord"][0]},{cur["coord"][1]}')}):
-							if directions[d[0]][2] in temp2:
-								for t in temp2[directions[d[0]][2]]:
-									if t['id']==hint:
-										t['x'],t['y']=x,y
+						if temp2:=collection.treasure.find_one({'_id':(id:=f'{(x1:=cur["coord"][0])},{(y1:=cur["coord"][1])}')}):
+							if directions[d[0]][-1] in temp2:
+								for t in temp2[directions[d[0]][-1]]:
+									if t['id']==hint['poiLabelId']:
+										if direction==directions[d[0]][-1] and test_coord(start_coord[0],start_coord[-1],x1,y1,direction):
+											t['x'],t['y']=x,y
+										elif test_coord(x,y,t['x'],t['y'],directions[d[0]][-1]):
+											t['x'],t['y']=x,y
+										else:
+											i=1
 										break
 								else:
-									temp2[directions[d[0]][2]].append({'id':hint,'x':x,'y':y})
+									temp2[directions[d[0]][-1]].append({'id':hint['poiLabelId'],'x':x,'y':y})
 							else:
-								temp2[directions[d[0]][2]]=[{'id':hint,'x':x,'y':y}]
-							collection.treasure.update_one({'_id':id},{'$set':{directions[d[0]][2]:temp2[directions[d[0]][2]]}})
+								temp2[directions[d[0]][-1]]=[{'id':hint['poiLabelId'],'x':x,'y':y}]
+							collection.treasure.update_one({'_id':id},{'$set':{directions[d[0]][-1]:temp2[directions[d[0]][-1]]}})
 						else:
-							collection.treasure.insert_one({'_id':id},{'$set':{directions[d[0]][2]:[{'id':hint,'x':x,'y':y}]}})
+							collection.treasure.insert_one({'_id':id},{'$set':{directions[d[0]][-1]:[{'id':hint['poiLabelId'],'x':x,'y':y}]}})
 						i-=1
 # create_nodes()
 # link_nodes()

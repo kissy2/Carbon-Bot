@@ -4,8 +4,8 @@ from scapy.all import sniff
 from scapy.all import Raw, IP, TCP
 from data import Data
 from protocol import read, msg_from_id, types, write,useful,logging
-global wait, flag, next_seq, last10,error_count
-wait, flag, next_seq, last10 = [], False, False, []
+global wait, flag, next_seq, last10
+wait, flag, next_seq, last10 = [], 0, False, []
 from sys import exc_info
 class Buffer(Data):
     def end(self):
@@ -72,6 +72,7 @@ class Msg:
             data = Data(buf.read(lenData))
         except IndexError:
             buf.pos = 0
+            flag+=1
             return "next"
         else:
             if id == 2:
@@ -81,6 +82,7 @@ class Msg:
                 assert msg is not None and not newbuffer.remaining()
                 return msg
             buf.end()
+            flag=0
             return Msg(id, data, count)
 
     def lenlenData(self):
@@ -104,10 +106,17 @@ class Msg:
 
     @property
     def msgType(self):
+        global flag,wait,next_seq
         try:
             return msg_from_id[self.id]
         except:
             print('key error')
+            if flag>5:
+                print('5 straight erros')
+                flag=0
+                wait=[]
+                next_seq=None
+                buf.reset()
             logging.critical(f'Error in start key error {self.id}')
 
 

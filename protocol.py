@@ -14,9 +14,9 @@ if release()=='10':
 	notify=ToastNotifier()
 from sys import argv
 from os import system
-system(f'del log-{argv[4]}.txt')
-logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'log-{argv[4]}.txt', level=logging.DEBUG)
-logging.raiseExceptions = False
+# system(f'del log-{argv[4]}.txt')
+# logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'log-{argv[4]}.txt', level=logging.DEBUG)
+# logging.raiseExceptions = False
 with (Path(__file__).parent / "protocol.pk").open("rb") as f:
 	types = pickle.load(f)
 	msg_from_id = pickle.load(f)
@@ -308,7 +308,7 @@ def read(type, data: Data):
 		flag = True
 
 		# logging.info(f'{ans}\n')
-		
+
 		if ans["__type__"] == "GameFightOptionStateUpdateMessage":
 			if useful["infight"] == ans["fightId"]:
 				if ans['option'] == 0:
@@ -434,7 +434,12 @@ def read(type, data: Data):
 					useful['fight']['range']+=ans['delta']
 					prev=ans['spellId']
 				if ans['spellId'] == 4677:
-					useful['fight']['mp']-= ans['delta'] 
+					useful['fight']['mp']-= ans['delta']
+
+		# elif ans['__type__'] == 'GameActionFightModifyEffectsDurationMessage' and ans['actionId']==1075 and ans['targetId']==useful['contextualId']:
+		# 	print(ans)
+		# 	useful['fight']['mp']-=ans['delta']
+
 
 		elif ans["__type__"] == "GameFightJoinMessage":
 			pass
@@ -450,27 +455,27 @@ def read(type, data: Data):
 				elif ans["actionId"] == 129:
 					useful["fight"]["mp"] = int(useful["fight"]["mp"]) + int(howmuch)
 
-		elif ans["__type__"] == "GameActionFightMultipleSummonMessage":
-			source = ans["sourceId"]
-			if source == useful["contextualId"]:
-				for summon in ans["summons"]:
-					if summon["__type__"] == "GameContextSummonsInformation":
-						for summoned in summon["summons"]:
-							id = summoned["informations"]["contextualId"]
-							id = int(id)
-							useful["fight"]["mysummons"][id] = {}
-							useful["fight"]["mysummons"][id]["cellid"] = summoned["informations"]["disposition"]["cellId"]
-			else:
-				for summon in ans["summons"]:
-					if summon["__type__"] == "GameContextSummonsInformation":
-						for summoned in summon["summons"]:
-							if summoned["teamId"] != useful["fight"]["my_teamid"]:
-								id = summoned["informations"]["contextualId"]
-								id = int(id)
-								useful["fight"]["enemyteamMembers"][id] = {}
-								useful["fight"]["enemyteamMembers"][id]["cellid"] = summoned["informations"]["disposition"][
-									"cellId"]
-								useful["fight"]["enemyteamMembers"][id]["summoned"] = True
+		# elif ans["__type__"] == "GameActionFightMultipleSummonMessage":
+		# 	source = ans["sourceId"]
+		# 	if source == useful["contextualId"]:
+		# 		for summon in ans["summons"]:
+		# 			if summon["__type__"] == "GameContextSummonsInformation":
+		# 				for summoned in summon["summons"]:
+		# 					id = summoned["informations"]["contextualId"]
+		# 					id = int(id)
+		# 					useful["fight"]["mysummons"][id] = {}
+		# 					useful["fight"]["mysummons"][id]["cellid"] = summoned["informations"]["disposition"]["cellId"]
+		# 	else:
+		# 		for summon in ans["summons"]:
+		# 			if summon["__type__"] == "GameContextSummonsInformation":
+		# 				for summoned in summon["summons"]:
+		# 					if summoned["teamId"] != useful["fight"]["my_teamid"]:
+		# 						id = summoned["informations"]["contextualId"]
+		# 						id = int(id)
+		# 						useful["fight"]["enemyteamMembers"][id] = {}
+		# 						useful["fight"]["enemyteamMembers"][id]["cellid"] = summoned["informations"]["disposition"][
+		# 							"cellId"]
+		# 						useful["fight"]["enemyteamMembers"][id]["summoned"] = True
 
 		elif ans["__type__"] == "GameActionFightSpellCastMessage":
 			# logging.warning("spell used")
@@ -532,8 +537,8 @@ def read(type, data: Data):
 			useful['hunt']['flags'] = ans['flags']
 
 		elif ans["__type__"]=="TreasureHuntFinishedMessage":
+			logging.info('hunt finished')
 			del useful["hunt"]
-
 		elif ans["__type__"] == "GameFightShowFighterMessage":
 			id = int(ans["informations"]["contextualId"])
 			if id == useful["contextualId"]:
@@ -544,7 +549,7 @@ def read(type, data: Data):
 			elif id < 0 and id not in useful["fight"]["mysummons"]:
 				useful["fight"]["enemyteamMembers"][id]["cellid"] = ans["informations"]["disposition"]["cellId"]
 				useful["fight"]["enemyteamMembers"][id]["lifepoints"] = ans["informations"]["stats"]["lifePoints"]
-				useful["fight"]["enemyteamMembers"][id]["summoned"] = ans["informations"]["stats"]["summoned"]
+				# useful["fight"]["enemyteamMembers"][id]["summoned"] = ans["informations"]["stats"]["summoned"]
 				try:
 					useful["fight"]["enemyteamMembers"][id]["level"] = ans["informations"]["creatureLevel"]
 				except:
@@ -572,14 +577,14 @@ def read(type, data: Data):
 					useful["mypos"] = cellid
 					useful["fight"]["mypos"] = cellid
 				elif id < 0:
-					if id in useful["fight"]["mysummons"]:
-						useful["fight"]["mysummons"][id]["cellid"] = cellid
-					else:
-						try:
-							useful["fight"]["enemyteamMembers"][id]["cellid"] = cellid
-						except:
-							useful["fight"]["enemyteamMembers"][id] = {}
-							useful["fight"]["enemyteamMembers"][id]["cellid"] = cellid
+					# if id in useful["fight"]["mysummons"]:
+						# useful["fight"]["mysummons"][id]["cellid"] = cellid
+					# else:
+					try:
+						useful["fight"]["enemyteamMembers"][id]["cellid"] = cellid
+					except:
+						useful["fight"]["enemyteamMembers"][id] = {}
+						useful["fight"]["enemyteamMembers"][id]["cellid"] = cellid
 				else:
 					try:
 						useful["fight"]["teamMembers"][id]["cellid"] = cellid
@@ -612,10 +617,14 @@ def read(type, data: Data):
 
 		elif ans["__type__"] == "GameActionFightSlideMessage":
 			try:
-				if ans["targetId"] < 0 and ans["targetId"] not in useful["fight"]["mysummons"]:
-					useful["fight"]["enemyteamMembers"][int(ans["targetId"])]["cellid"] = ans["endCellId"]
+				useful["fight"]["enemyteamMembers"][int(ans["targetId"])]["cellid"] = ans["endCellId"]
 			except:
 				pass
+			# try:
+				# if ans["targetId"] < 0 and ans["targetId"] not in useful["fight"]["mysummons"]:
+					# useful["fight"]["enemyteamMembers"][int(ans["targetId"])]["cellid"] = ans["endCellId"]
+			# except:
+				# pass
 		# elif ans["__type__"] == "GameFightTurnReadyRequestMessage":
 		# 	useful["fight"]["TurnReadyRequest"] = ans["id"]
 

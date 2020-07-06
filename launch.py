@@ -13,30 +13,20 @@ def move(nid,zaap=False,sneaky=None,treasure=False,exit=None):
 		for x in collection.zaaps.find({}):
 			if (calc:=abs(int((c:=x['_id'].split(','))[0])-n['coord'][0])+abs(int(c[1])-n['coord'][1]))<m:
 				name,m=x['name'],calc	
-		if teleport(name,exit):
-			return
+		teleport(name,exit)
 		nid=n['_id']
 	for e in (p:=pathfinder((c:=get_current_node(1)),nid,shuffle=False)):
 		prev=useful['mapid']
 		click(cell:=get_closest(e[0],set_mat(e[2])[1],e[1]),direction=e[1])
 		cond_wait(2,2.5,['mapid',prev,4,wrapper(click,cell,direction=e[1]) if e[0]!='d' else wrapper(click,cell,direction=e[1],offx=7,offy=7)])
+		if hasattr(exit,'__call__') and not exit():	
+			return
 		if sneaky in useful['map_npc']:
 			logging.info(f'Treasure Hunt : sneaky is here {(s:=get_current_node(1))}')
 			return s
-	# if treasure and not p and nid !=c:#remove hunt
-	# 	move(128452097,True)
-	# 	logging.info('dump hunt')
-	# 	while 'hunt' in useful:
-	# 		if 'wait' in useful:
-	# 			logging.info(f'sleeping in move {useful["wait"]}')
-	# 			sleep(60*useful['wait'])
-	# 		click(125,offy=-2*35)
-	# 		sleep(1)
-	# 		app.send_keystrokes('~')
-	# 	del useful['wait']
 	return nid
 
-def treasure_hunt(lvl=20,supervised=False):
+def treasure_hunt(supervised=False):
 	from urllib.request import urlopen,Request
 	from json import loads,load,dump
 	def check_hint(j=None,last=True):
@@ -53,43 +43,50 @@ def treasure_hunt(lvl=20,supervised=False):
 			click(125,-14,useful['hunt']['totalStepCount']*35+8)
 			sleep(2)
 		return True
-	def update_treasure(last,hint):
+	def update_treasure(last,hint,start_coord):
 		try:
 			logging.info(f'update_treasure called {last} {hint}')
+			direction,test_coord=directions[hint['direction']][-1],lambda x,y,x1,y1,d:x>=x1 if d=='4' else x<=x1 if d=='0' else y<=y1 if d=='2' else y>=y1
 			for d in directions.items():
 				start,i=last,10	
 				while i and (cur:=collection.nodes.find_one({'_id':start}))[d[1][0]]:
 					if last==start:
 						x,y=cur['coord'][0],cur['coord'][1]
+					m=0
 					for start in cur[d[1][0]]:
-						#not ideal check exact path not first node with map change option
-						if (cur:=collection.nodes.find_one({'_id':start},{d[1][0],'coord'}))[d[1][0]]:
-							break
-					else:
+						#not ideal check exact path
+						if (temp:=collection.nodes.find_one({'_id':start},{d[1][0],'coord','walkable'}))[d[1][0]] and (length:=len(temp['walkable'])) >m:
+							cur,m=temp,length
+					if not m:
 						i=1
-						logging.info(f'Failed updating out empty after direction {d} last node is {start}')
+						logging.info(f'Stop updating on direction {d} last node is {start}')
 					logging.info(f'updating {cur["coord"]}')
-					if temp2:=collection.treasure.find_one({'_id':(id:=f'{cur["coord"][0]},{cur["coord"][1]}')}):
-						if directions[d[0]][2] in temp2:
-							for t in temp2[directions[d[0]][2]]:
+					if temp2:=collection.treasure.find_one({'_id':(id:=f'{(x1:=cur["coord"][0])},{(y1:=cur["coord"][1])}')}):
+						if directions[d[0]][-1] in temp2:
+							for t in temp2[directions[d[0]][-1]]:
 								if t['id']==hint['poiLabelId']:
-									t['x'],t['y']=x,y
+									if direction==directions[d[0]][-1] and test_coord(start_coord[0],start_coord[-1],x1,y1,direction):
+										t['x'],t['y']=x,y
+									elif test_coord(x,y,t['x'],t['y'],directions[d[0]][-1]):
+										t['x'],t['y']=x,y
+									else:
+										i=1
 									break
 							else:
-								temp2[directions[d[0]][2]].append({'id':hint['poiLabelId'],'x':x,'y':y})
+								temp2[directions[d[0]][-1]].append({'id':hint['poiLabelId'],'x':x,'y':y})
 						else:
-							temp2[directions[d[0]][2]]=[{'id':hint['poiLabelId'],'x':x,'y':y}]
-						collection.treasure.update_one({'_id':id},{'$set':{directions[d[0]][2]:temp2[directions[d[0]][2]]}})
+							temp2[directions[d[0]][-1]]=[{'id':hint['poiLabelId'],'x':x,'y':y}]
+						collection.treasure.update_one({'_id':id},{'$set':{directions[d[0]][-1]:temp2[directions[d[0]][-1]]}})
 					else:
-						collection.treasure.insert_one({'_id':id},{'$set':{directions[d[0]][2]:[{'id':hint['poiLabelId'],'x':x,'y':y}]}})
+						collection.treasure.insert_one({'_id':id},{'$set':{directions[d[0]][-1]:[{'id':hint['poiLabelId'],'x':x,'y':y}]}})
 					i-=1
 			with open('./assets/hints.json', 'r', encoding='utf8') as f:
-				a=load(f)+[{'coord':f'{x},{y}','name':collection.named_ids.find_one({'_id':hint['poiLabelId']})['name']}]
+				a=load(f)+[{'coord':f'{x},{y}','name':collection.named_ids.find_one({'_id':hint['poiLabelId']})['name'],'direction':direction,'start':start_coord}]
 			with open('./assets/hints.json', 'w', encoding='utf8') as f:
 				dump(a,f)
 		except:
 			logging.error('Failed updating missing clue',exc_info=True)
-	def fix(last):
+	def fix():
 		try:
 			logging.warning(f'Fix : Trying to find the clue in adjacent maps {useful["hunt"]}')
 			check_hint()
@@ -106,12 +103,12 @@ def treasure_hunt(lvl=20,supervised=False):
 				logging.warning('Treasure Hunt : Couldn\'t find this clue on dofus sama')
 			logging.info(f'currentstep after try {useful["hunt"]["currentstep"]}')
 			if  prev!=useful['hunt']['currentstep']:
-				logging.info('enter first update')
-				update_treasure(last,prev)
-				#save id to future update
+				update_treasure(last,prev,current_coord)
 			elif supervised:
+				if release()=='10':
+					notify.show_toast('TREASER HUNT','SET CLUE MANUALLY')
 				input('Move to the map that contain the clue ***verify it before*** then press enter')
-				update_treasure(last:=get_current_node(1),prev)
+				update_treasure(last:=get_current_node(1),prev,current_coord)
 			else:
 				logging.info('enter for loop fix')
 				for _ in range(useful['hunt']['availableRetryCount']):
@@ -121,22 +118,26 @@ def treasure_hunt(lvl=20,supervised=False):
 					check_hint(j)
 					if prev!=useful['hunt']['currentstep']:
 						logging.info('enter second update')
-						update_treasure(last,prev)
+						update_treasure(last,prev,current_coord)
 						break
 					logging.info(f'currentstep after for loop iter {useful["hunt"]["currentstep"]}')
 				logging.info(f'return after for loop fix {useful["hunt"]["result"]} {last}')
 			logging.info(f'fix return {last} , {useful["hunt"]}')
 			return None if useful['hunt']['result']==4 else last
 		except:
-			logging.error('Failed fixing missing clue',exc_info=True)
+			logging.error('Failed fixing missing clue probably hunt failed',exc_info=True)
 	def f(coord,last,d):
-		cur=collection.nodes.find_one({'_id':last},t:={d,'d','coord'})
+		cur=collection.nodes.find_one({'_id':last},t:={d,'d','coord','mapid','walkable'})
 		while cur['coord']!=coord:
+			calc=0
 			for x in [*cur[d]]:
-				#not ideal didn't check exact path
-				if (cur:=collection.nodes.find_one({'_id':x},t))[d] or cur['coord']==coord:
-					break
-			else:
+				#not ideal didn't check exact path or smaller node have access to doors
+				tn=collection.nodes.find_one({'_id':x},t)
+				if tn['coord']==coord:
+					return tn['_id']
+				elif tn[d] and (l:=len(tn['walkable']))>calc:
+					cur,calc=tn,l
+			if not calc:
 				for x in [*cur['d']]:
 					if (cur:=collection.nodes.find_one({'_id':x},t))[d] or cur['coord']==coord:##not ideal didn't check 2 straight doors
 						break
@@ -144,27 +145,31 @@ def treasure_hunt(lvl=20,supervised=False):
 					if release()=='10':
 						notify.show_toast('TREASER HUNT','SET DOORS/CAVES')
 					input(f'Set doors/caves in this map {x} before continuing the hunt : hit enter to continue')
-					cur=collection.nodes.find_one({'_id':x},t)##not ideal didn't check 2 straight doors
-		return cur['_id']
+					chosen=collection.nodes.find_one({'_id':x},t)##not ideal didn't check 2 straight doors
+		return cur['_id']	
+	last=get_current_node(1,128452097,4)
 	while 1:
 		try:
 			logging.info(f'Treasure Hunt has began')
 			if 'hunt' not in useful:
-				move(128452097,zaap=True,exit=True)
+				move(128452097,zaap=True,exit=last)
 				while 'hunt' not in useful:
 					click(0,-1000)
-					click(288)
-					sleep(3)
-					for _ in range((lvl//20)+1):
-						app.send_keystrokes('{UP}')
-						sleep(.2)
+					click(288,direction='d')
+					sleep(1)
+					app.send_keystrokes('{DOWN}')
+					# sleep(.5)
+					# app.send_keystrokes('{DOWN}')
+					sleep(.5)
 					app.send_keystrokes('~')
 					sleep(7)
 					if 'wait' in useful:
 						sleep(60*useful['wait'])
-			move(get_current_node(1,142089230,357),False)
+						del useful['wait']
+				move(get_current_node(1,142089230,357),False,exit=last)
 			directions,last={0:('e','right','4'),4:('w','left','0'),2:('s','bottom','6'),6:('n','top','2')},move(useful['hunt']['flags'][-1]['mapId'] if useful['hunt']['flags'] else useful['hunt']['startMapId'],True,treasure=True)
 			while useful['hunt']['checkPointTotal']-useful['hunt']['checkPointCurrent']-1:
+				skip=False
 				for j in range(len(useful['hunt']['flags']),useful['hunt']['totalStepCount']):
 					current_coord,sneaky=collection.nodes.find_one({'_id':last},{'coord':1,'_id':0})['coord'],None
 					logging.info(f'current step {useful["hunt"]["currentstep"]}\ncurrent coord {current_coord}')
@@ -178,7 +183,7 @@ def treasure_hunt(lvl=20,supervised=False):
 									break
 						else:
 							logging.warning('Treasure Hunt : Couldn\'t find this clue on dofus map')
-							if not (last:=fix(last)):
+							if not (last:=fix()):
 								break
 							else:
 								continue
@@ -194,19 +199,26 @@ def treasure_hunt(lvl=20,supervised=False):
 						except:
 							logging.info('sneaky error')
 							break
-					logging.info(f'move {next_node} ╔to and flag hint')
+					logging.info(f'move {next_node} to and flag hint')
 					last=move(next_node,sneaky=sneaky)
-					if not check_hint(j,False):
+					if useful['mapid'] in {x['mapId'] for x in useful['hunt']['flags']}:
+						logging.info('skip')
+						skip=True
 						break
-				if 'result' in useful['hunt'] and useful['hunt']['result']==4:
-					break
-				check_hint()
-				if useful['hunt']['result']==3:
-					logging.warning(f'Wrong clue after for loop\n')
-					last=fix(last)
+					if not check_hint(j,False):
+						logging.info('Failed flagging the clue')
+						# skip=True
+						break
+				if not skip:
+					if 'result' in useful['hunt'] and useful['hunt']['result']==4:
+						break
+					check_hint()
+					if useful['hunt']['result']==3:
+						logging.warning(f'Wrong clue after for loop')
+						last=fix()
 			if useful['hunt']['result']!=4:
 				click(125,-145)
-				wait_check_fight(3,4,Treasure=True,lvl=lvl)
+				wait_check_fight(3,4,Treasure=True)
 		except:
 			print('Error in Treasure Hunt')
 			logging.info('Error in Treasure Hunt',exc_info=True)
@@ -245,7 +257,6 @@ def wrapper(fun, *args, **kwargs):
 def teleport(text,exit=None):
 	logging.info(f'Teleporting to {text}')
 	app.send_keystrokes('{VK_SHIFT}')
-	app.send_message(257,16)
 	app.send_keystrokes('^{ }')
 	sleep(1)
 	app.send_keystrokes('^{a}')
@@ -263,10 +274,9 @@ def teleport(text,exit=None):
 		check_admin()
 		if not (count:=count-1):
 			logging.warning(f'Could Not Teleport To HavenBag From This Map{useful["mapid"]}')
+			print(exit)
 			if exit:
-				app.send_keystrokes('1')
-				sleep(3)
-				teleport(text,True)
+				move(exit,exit=wrapper(teleport,text))
 			return True
 	logging.info(f'Enter Havenbag ,{useful["mapid"]}')
 	counter=0
@@ -280,13 +290,17 @@ def teleport(text,exit=None):
 			click(300)
 		counter+=1
 	while useful['mapid']==162793472 and not check_connection():
+		app.send_keystrokes('{VK_SHIFT}')
 		click(134,offy=-10)
-		sleep(1)
-		app.send_keystrokes('^{a}{BACKSPACE}')
-		sleep(1)
+		sleep(2)
+		app.send_keystrokes('^{a}')
+		sleep(2)
+		app.send_keystrokes('{BACKSPACE}')
+		sleep(2)
 		app.send_keystrokes(text)
 		sleep(3)
-		app.send_keystrokes('~')
+		click(175,offy=-5)
+		click(175,offy=-5)
 		sleep(5)
 		check_admin()
 	logging.info(f'Done teleporting to {text} current mapid is {useful["mapid"]}')
@@ -352,7 +366,7 @@ def order(li,mat,priority):
 		print('Error in order')
 		logging.error(f'Eroor in order list : {li}\npriority : {priority}\nmat : {mat}',exc_info=True)
 
-def wait_check_fight(tmin,tmax,cond=0,Treasure=False,lvl=20):
+def wait_check_fight(tmin,tmax,cond=0,Treasure=False):
 	try:
 		sleep(uniform(tmin,tmax))
 		check_admin()
@@ -565,62 +579,14 @@ def xp(zone='xp_incarnam',threshold=1):
 						loop=False
 
 # execute(arg['path'].split(','),arg['resource'].split(','),arg['priority'].split(','))
-treasure_hunt(40,1)
+
+treasure_hunt()
+# while 1:
+# 	app.send_keystrokes('~')
+# 	sleep(.1)
 # xp(zone='xp_goball',threshold=1)
 # import utils2
-# useful={'hunt':{'currentstep':{'__type__': 'TreasureHuntStepFollowDirectionToHint', 'direction': 0, 'npcId': 2669}}}
-# directions={0:('e','right','4'),4:('w','left','0'),2:('s','bottom','6'),6:('n','top','2')}
-# sneaky,t=useful['hunt']['currentstep']['npcId'],{directions[useful['hunt']['currentstep']['direction']][0],'d'}
-# last="6127"
-# for _ in range(10):
-# 	for y,x in ((y,x) for y in t for x in [*collection.nodes.find_one({'_id':last},t)[y]]):
-# 		if collection.nodes.find_one({'_id':x},t)[directions[useful['hunt']['currentstep']['direction']][0]]:#not accurate didn't check exact path if multinode or 2 straight doors
-# 			break
-# 	last=x
-# next_node=last
-# print(next_node)
-
-# from urllib.request import urlopen,Request
-# useful={'hunt':{'currentstep':{'__type__': 'TreasureHuntStepFollowDirectionToHint', 'direction': 0, 'npcId': 2669}}}
-# directions={0:('e','right','4'),4:('w','left','0'),2:('s','bottom','6'),6:('n','top','2')}
-# # sneaky,t=useful['hunt']['currentstep']['npcId'],{directions[useful['hunt']['currentstep']['direction']][0]}
-# last="6127"
-# def f(coord,last,d):
-# 	cur=collection.nodes.find_one({'_id':last},t:={d,'d','coord'})
-# 	while cur['coord']!=coord:
-# 		print(cur['coord'])
-# 		for x in [*cur[d]]:
-# 			#not ideal didn't check exact path
-# 			if (cur:=collection.nodes.find_one({'_id':x},t))[d] or cur['coord']==coord:
-# 				break
-# 		else:
-# 			for x in [*cur['d']]:
-# 				if (cur:=collection.nodes.find_one({'_id':x},t))[d] or cur['coord']==coord:##not ideal didn't check 2 straight doors
-# 					break
-# 			else:
-# 				if release()=='10':
-# 					notify.show_toast('TREASER HUNT','SET DOORS/CAVES')
-# 				input(f'Set doors/caves in this map {x} before continuing the hunt : hit enter to continue')
-# 				cur=collection.nodes.find_one({'_id':x},t)##not ideal didn't check 2 straight doors
-# 	return cur['_id']
-# current_coord=[4, 13]
-# print([int((t:=(r:=urlopen(Request('https://www.dofusama.fr/treasurehunt/en/search-clue.html', f'direction={useful["hunt"]["currentstep"]["direction"]}&map_pos_x={current_coord[0]}&map_pos_y={current_coord[1]}&map_indice={collection.dofus_sama.find_one({"_id":useful["hunt"]["currentstep"]["poiLabelId"]})["ds_id"]}'.encode('ascii'),headers={'User-Agent': 'Mozilla/5.0'})).read().decode('utf-8'))[(s:=r.index('>[')+2):r.index(']',s)].split(','))[0]),int(t[1])])
-# last=f([int((t:=(r:=urlopen(Request('https://www.dofusama.fr/treasurehunt/en/search-clue.html', f'direction={useful["hunt"]["currentstep"]["direction"]}&map_pos_x={current_coord[0]}&map_pos_y={current_coord[1]}&map_indice={collection.dofus_sama.find_one({"_id":useful["hunt"]["currentstep"]["poiLabelId"]})["ds_id"]}'.encode('ascii'),headers={'User-Agent': 'Mozilla/5.0'})).read().decode('utf-8'))[(s:=r.index('>[')+2):r.index(']',s)].split(','))[0]),int(t[1])],last,directions[useful['hunt']['currentstep']['direction']][0])
-# print(last)
-# click(496)
-# import utils2
-# while 1 :
-# 	input('wait')
-# 	print(useful['fight']['range'])
-# 	wait_check_fight(1,2)
-# 	print(useful['hunt'])
-
-# directions={0:('e','right','4'),4:('w','left','0'),2:('s','bottom','6'),6:('n','top','2')}
-# useful['hunt']={'currentstep':{'__type__': 'TreasureHuntStepFollowDirectionToPOI', 'direction': 0, 'poiLabelId': 48}}
-# last="5231"
-# current_coord=[-22,34]
-
-
+						
 # from urllib.request import urlopen,Request,build_opener,HTTPCookieProcessor
 
 # b=build_opener(HTTPCookieProcessor())
