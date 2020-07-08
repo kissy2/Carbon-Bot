@@ -4,7 +4,7 @@ from urllib.request import Request,urlopen,build_opener,HTTPCookieProcessor
 from os import listdir
 from pymongo import MongoClient
 from json import dump
-# from utils import get_current_node,useful,click
+from utils import get_current_node,useful,click
 collection,reg,base,req,opener=MongoClient('mongodb://localhost:27017/').admin,'[0-9]+-[a-zA-Z-]+">[a-zA-Z -]+','https://www.dofus.com/en/mmorpg/encyclopedia/',lambda l:Request(l, headers={'User-Agent': 'Mozilla/5.0'}),build_opener(HTTPCookieProcessor())
 
 def get_neighbors(cell,shape,floor):
@@ -326,7 +326,7 @@ def set_treasure_ids():
 						i-=1
 # create_nodes()
 # link_nodes()
-# set_doors_hardcode()
+set_doors_hardcode()
 # set_paths()
 # set_paths_2()
 # set_interactives()
@@ -335,5 +335,5 @@ def set_treasure_ids():
 # set_monsters()
 # set_runes()
 # set_exceptions()
-set_treasure_ids()#takes 3-4 hours... how to optimize this maybe multiprocessing + asyncio ?
+# set_treasure_ids()#takes 3-4 hours... how to optimize this maybe multiprocessing + asyncio ?
 print('done')

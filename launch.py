@@ -48,6 +48,7 @@ def treasure_hunt(supervised=False):
 			logging.info(f'update_treasure called {last} {hint}')
 			direction,test_coord=directions[hint['direction']][-1],lambda x,y,x1,y1,d:x>=x1 if d=='4' else x<=x1 if d=='0' else y<=y1 if d=='2' else y>=y1
 			for d in directions.items():
+				logging.info(f'updating direction : {d}')
 				start,i=last,10	
 				while i and (cur:=collection.nodes.find_one({'_id':start}))[d[1][0]]:
 					if last==start:
@@ -88,29 +89,31 @@ def treasure_hunt(supervised=False):
 			logging.error('Failed updating missing clue',exc_info=True)
 	def fix():
 		try:
-			logging.warning(f'Fix : Trying to find the clue in adjacent maps {useful["hunt"]}')
+			logging.warning(f'Treasure Fix Called :\n{useful["hunt"]}')
 			check_hint()
 			last,current_coord,prev,j=(t:=collection.nodes.find_one({'mapid':useful['hunt']['flags'][-1]['mapId'] if useful['hunt']['flags'] else useful['hunt']['startMapId']},{'mapid','coord'}))['_id'],t['coord'],useful['hunt']['currentstep'],len(useful['hunt']['flags'])
-			logging.info(f'start node : {last} currentstep : {prev}')
+			logging.info(f'start node : {last} start_coord : {current_coord} currentstep : {prev}')
 			try:
 				logging.info('Try Fix in dofus sama')
-				last=move(f([int((t:=(r:=urlopen(Request('https://www.dofusama.fr/treasurehunt/en/search-clue.html', f'direction={useful["hunt"]["currentstep"]["direction"]}&map_pos_x={current_coord[0]}&map_pos_y={current_coord[1]}&map_indice={collection.dofus_sama.find_one({"_id":useful["hunt"]["currentstep"]["poiLabelId"]})["ds_id"]}'.encode('ascii'),headers={'User-Agent': 'Mozilla/5.0'})).read().decode('utf-8'))[(s:=r.index('>[')+2):r.index(']',s)].split(','))[0]),int(t[1])],last,directions[useful['hunt']['currentstep']['direction']][0]))
-				check_hint(j)
-				logging.info(f'Dofus sama clue in node {last}')
+				for x in f([int((t:=(r:=urlopen(Request('https://www.dofusama.fr/treasurehunt/en/search-clue.html', f'direction={useful["hunt"]["currentstep"]["direction"]}&map_pos_x={current_coord[0]}&map_pos_y={current_coord[1]}&map_indice={collection.dofus_sama.find_one({"_id":useful["hunt"]["currentstep"]["poiLabelId"]})["ds_id"]}'.encode('ascii'),headers={'User-Agent': 'Mozilla/5.0'})).read().decode('utf-8'))[(s:=r.index('>[')+2):r.index(']',s)].split(','))[0]),int(t[1])],last,directions[useful['hunt']['currentstep']['direction']][0]):
+					last=move(x)
+					logging.info(f'Dofus sama clue in node {last}')
+					check_hint(j)
+					logging.info(f'currentstep after try {useful["hunt"]["currentstep"]}')
+					if  prev!=useful['hunt']['currentstep']:
+						update_treasure(last,prev,current_coord)
+						return last
 			except:
 				if release()=='10':
 					notify.show_toast('TREASER HUNT','404 clue')
 				logging.warning('Treasure Hunt : Couldn\'t find this clue on dofus sama')
-			logging.info(f'currentstep after try {useful["hunt"]["currentstep"]}')
-			if  prev!=useful['hunt']['currentstep']:
-				update_treasure(last,prev,current_coord)
-			elif supervised:
+			if supervised:
 				if release()=='10':
 					notify.show_toast('TREASER HUNT','SET CLUE MANUALLY')
-				input('Move to the map that contain the clue ***verify it before*** then press enter')
+				input('Move to the map that contain the clue ***verify it before*** then press ENTER')
 				update_treasure(last:=get_current_node(1),prev,current_coord)
 			else:
-				logging.info('enter for loop fix')
+				logging.info('Trying random fix')
 				for _ in range(useful['hunt']['availableRetryCount']):
 					#add testing to all nodes in given direction
 					last=move([*collection.nodes.find_one({'_id':last},{directions[useful['hunt']['currentstep']['direction']][0],'coord'})[directions[useful['hunt']['currentstep']['direction']][0]]][0])
@@ -127,15 +130,15 @@ def treasure_hunt(supervised=False):
 		except:
 			logging.error('Failed fixing missing clue probably hunt failed',exc_info=True)
 	def f(coord,last,d):
-		cur=collection.nodes.find_one({'_id':last},t:={d,'d','coord','mapid','walkable'})
+		cur,ret=collection.nodes.find_one({'_id':last},t:={d,'d','coord','mapid','walkable'}),[]
 		while cur['coord']!=coord:
 			calc=0
 			for x in [*cur[d]]:
 				#not ideal didn't check exact path or smaller node have access to doors
 				tn=collection.nodes.find_one({'_id':x},t)
-				if tn['coord']==coord:
-					return tn['_id']
-				elif tn[d] and (l:=len(tn['walkable']))>calc:
+				if ((l:=len(tn['walkable']))>calc and tn[d]) or tn['coord']==coord:
+					if tn['coord']==coord:
+						ret.append(tn['_id'])
 					cur,calc=tn,l
 			if not calc:
 				for x in [*cur['d']]:
@@ -145,10 +148,11 @@ def treasure_hunt(supervised=False):
 					if release()=='10':
 						notify.show_toast('TREASER HUNT','SET DOORS/CAVES')
 					input(f'Set doors/caves in this map {x} before continuing the hunt : hit enter to continue')
-					chosen=collection.nodes.find_one({'_id':x},t)##not ideal didn't check 2 straight doors
-		return cur['_id']	
+					cur=collection.nodes.find_one({'_id':x},t)##not ideal didn't check 2 straight doors
+		return [cur['_id']] if not ret else ret	
 	last=get_current_node(1,128452097,4)
 	while 1:
+		# input('hint ready')
 		try:
 			logging.info(f'Treasure Hunt has began')
 			if 'hunt' not in useful:
@@ -163,13 +167,18 @@ def treasure_hunt(supervised=False):
 					sleep(.5)
 					app.send_keystrokes('~')
 					sleep(7)
+					if 'retake' in useful and useful['retake']:
+						click(125,offy=-75)
+						sleep(1)
+						app.send_keystrokes('~')
+						sleep(1)
+						del useful['retake']
 					if 'wait' in useful:
 						sleep(60*useful['wait'])
 						del useful['wait']
 				move(get_current_node(1,142089230,357),False,exit=last)
 			directions,last={0:('e','right','4'),4:('w','left','0'),2:('s','bottom','6'),6:('n','top','2')},move(useful['hunt']['flags'][-1]['mapId'] if useful['hunt']['flags'] else useful['hunt']['startMapId'],True,treasure=True)
 			while useful['hunt']['checkPointTotal']-useful['hunt']['checkPointCurrent']-1:
-				skip=False
 				for j in range(len(useful['hunt']['flags']),useful['hunt']['totalStepCount']):
 					current_coord,sneaky=collection.nodes.find_one({'_id':last},{'coord':1,'_id':0})['coord'],None
 					logging.info(f'current step {useful["hunt"]["currentstep"]}\ncurrent coord {current_coord}')
@@ -190,25 +199,33 @@ def treasure_hunt(supervised=False):
 					else:
 						sneaky,t=useful['hunt']['currentstep']['npcId'],{directions[useful['hunt']['currentstep']['direction']][0]}
 						try:
+							temp=last
 							for _ in range(10):
-								for y,x in ((y,x) for y in t for x in [*collection.nodes.find_one({'_id':last},t)[y]]):
+								for y,x in ((y,x) for y in t for x in [*collection.nodes.find_one({'_id':temp},t)[y]]):
 									if collection.nodes.find_one({'_id':x},t)[directions[useful['hunt']['currentstep']['direction']][0]]:#not accurate didn't check exact path if multinode or 2 straight doors
 										break
-								last=x
-							next_node=last
+								temp=x
+							next_node=[temp]
 						except:
 							logging.info('sneaky error')
 							break
-					logging.info(f'move {next_node} to and flag hint')
-					last=move(next_node,sneaky=sneaky)
-					if useful['mapid'] in {x['mapId'] for x in useful['hunt']['flags']}:
-						logging.info('skip')
-						skip=True
+					logging.info(f'move to {next_node} and flag it')
+					if (length:=len(next_node)==1) and next_node[0]==last:
+						logging.info('move called on same map call fix')
 						break
-					if not check_hint(j,False):
-						logging.info('Failed flagging the clue')
-						# skip=True
-						break
+					else:
+						skip,fail=False,False
+						for x in next_node:
+							last,prev=move(x,sneaky=sneaky),useful['hunt']['currentstep']
+							if useful['mapid'] in {y['mapId'] for y in useful['hunt']['flags']}:
+								logging.info(f'skip current map {x}')
+								if x==next_node[-1]:	skip=True
+							elif not check_hint(j,False if length else True):
+								logging.info(f'Failed flagging the clue on this map {x}')
+								if x==next_node[-1]:	fail=True#try fix
+							elif prev!=useful['hunt']['currentstep']:
+								break
+						if skip or fail: break
 				if not skip:
 					if 'result' in useful['hunt'] and useful['hunt']['result']==4:
 						break
@@ -581,6 +598,11 @@ def xp(zone='xp_incarnam',threshold=1):
 # execute(arg['path'].split(','),arg['resource'].split(','),arg['priority'].split(','))
 
 treasure_hunt()
+
+
+# while 1:
+	# wait_check_fight(2,3)
+
 # while 1:
 # 	app.send_keystrokes('~')
 # 	sleep(.1)

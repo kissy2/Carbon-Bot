@@ -1,22 +1,13 @@
 from data import Data
 from time import strftime
-from platform import release
 from pathlib import Path
 import pickle
 import random
 from functools import reduce
-import pprint
 import json
 import logging
-prev=None
-if release()=='10':
-	from win10toast import ToastNotifier
-	notify=ToastNotifier()
-from sys import argv
-from os import system
-# system(f'del log-{argv[4]}.txt')
-# logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'log-{argv[4]}.txt', level=logging.DEBUG)
-# logging.raiseExceptions = False
+prev,client_name=None,None
+
 with (Path(__file__).parent / "protocol.pk").open("rb") as f:
 	types = pickle.load(f)
 	msg_from_id = pickle.load(f)
@@ -94,7 +85,7 @@ def addMapComplementaryInformationsDataMessage(ans):
 	useful["mapid"] = ans["mapId"]
 	useful["subAreaId"] = ans["subAreaId"]
 	for actor in ans["actors"]:
-		if not useful['contextualId'] and 'name' in actor and actor['name']== argv[2]:
+		if not useful['contextualId'] and 'name' in actor and actor['name']== client_name:
 			useful['accountId'],useful['contextualId']=actor['accountId'],actor['contextualId']
 		# This if was commented, why?
 		if actor["__type__"] == "GameRolePlayMerchantInformations":
@@ -289,7 +280,6 @@ def read(type, data: Data):
 				ans[var["name"]] = readVec(var, data)
 			else:
 				ans[var["name"]] = read(var["type"], data)
-		pp = pprint.PrettyPrinter(indent=4)
 
 		if type["hash_function"] and data.remaining() == 48:
 			ans["hash_function"] = data.read(48)
@@ -328,43 +318,27 @@ def read(type, data: Data):
 				logging.critical(f"MODERATOR MESSAGE RECEIVED {ans['senderName']}")
 				useful['threat']='high'
 			if ans['channel'] == 8:
-				print(f'ADMIN  MESSAGE RECEIVED {strftime("%I:%M %p")}')
 				useful['threat']='high'
 				logging.critical(f'MODERATOR MESSAGE : {ans}\nmap : {useful["mapid"]}')
-				if release()=='10':
-					notify.show_toast('ADMIN MESSAGE RECEIVED',f'THREAT : HIGH\n{ans}', threaded=True, duration=100)
-			elif ans['channel'] == 9:
-				print(f'PRIVATE MESSAGE RECEIVED {strftime("%I:%M %p")}\nSender : {ans["senderName"]}\nContent : {ans["content"]}\nmap{useful["mapid"]}')
+			elif ans['channel'] == 9:			
 				useful['threat']='medium'
-				if release()=='10':
-					notify.show_toast('Message From : '+ans['senderName'],ans['content'], threaded=True, duration=30)
 			elif ans['channel'] == 0:
 				if 'bot' in (s:=str(ans["content"])):
 					useful['threat']='medium'
-				print(f'GENERAL MESSAGE RECEIVED {strftime("%I:%M %p")}\nSender : {ans["senderName"]}\nContent : {s}')
 			logging.warning(f'Sender : {ans["senderName"]}\nContent : {str(ans["content"])}\nChannel : {ans["channel"]}')
 
 
 		elif ans["__type__"] == "PopupWarningMessage":
 			useful['threat']='high'
-			print(f'MODERATOR WARNING MESSAGE RECEIVED {strftime("%I:%M %p")}')
 			logging.critical(f'MODERATOR MESSAGE : {ans}\nmap : {useful["mapid"]}')
-			if release()=='10':
-				notify.show_toast('MODERATOR',f'THREAT : HIGH\n{ans["__type__"]}', threaded=True, duration=100)
 
 
 		elif ans["__type__"] in ("ChatAdminServerMessage","AdminCommandMessage"):
-			print(f'ADMIN  MESSAGE RECEIVED {strftime("%I:%M %p")}')
 			logging.warning(f'ADMIN MESSAGE : {ans}map : {useful["mapid"]}')
 			useful['threat']='high'
-			if release()=='10':
-				notify.show_toast('ADMIN MESSAGES',f'THREAT : MEDIUM\n{ans}', threaded=True, duration=100)
 
 		elif ans["__type__"] in ("ExchangeRequestedMessage","ExchangeShopStockStartedMessage","GameRolePlayPlayerFightRequestMessage","ExchangeRequestedTradeMessage","PartyInvitationMessage","GuildInvitedMessage","InviteInHavenBagOfferMessage","ExchangeReplyTaxVendorMessage"):
-			print(f'PLAYERS GAME ACTION {strftime("%I:%M %p")}')
 			useful["dialog"],useful['threat']=True if ans["__type__"] != "ExchangeReplyTaxVendorMessage" else 2,'low'
-			if release()=='10':
-				notify.show_toast('Annoying Players',f'THREAT : LOW\n{ans["__type__"]}', threaded=True, duration=10)
 			logging.warning(f'Annoying Players : {ans["__type__"]}\nmap : {useful["mapid"]}')
 
 		elif ans["__type__"] == "InventoryWeightMessage":
@@ -424,15 +398,6 @@ def read(type, data: Data):
 				if ans['spellId'] == 4677:
 					useful['fight']['mp']-= ans['delta']
 
-		# elif ans['__type__'] == 'GameActionFightModifyEffectsDurationMessage' and ans['actionId']==1075 and ans['targetId']==useful['contextualId']:
-		# 	print(ans)
-		# 	useful['fight']['mp']-=ans['delta']
-
-
-		elif ans["__type__"] == "GameFightJoinMessage":
-			pass
-			# {'__type__': 'GameFightJoinMessage', 'isTeamPhase': True, 'canBeCancelled': False, 'canSayReady': True, 'isFightStarted': False, 'timeMaxBeforeFightStart': 450, 'fightType': 4}
-
 
 		elif ans["__type__"] == "GameActionFightPointsVariationMessage":
 			target = ans["targetId"]
@@ -443,13 +408,6 @@ def read(type, data: Data):
 				elif ans["actionId"] == 129:
 					useful["fight"]["mp"] = int(useful["fight"]["mp"]) + int(howmuch)
 
-		elif ans["__type__"] == "GameActionFightSpellCastMessage":
-			# logging.warning("spell used")
-			source = ans["sourceId"]
-			targetid = ans["targetId"]
-			targetcell = ans["destinationCellId"]
-			# spelllevel = ans["spellId"]
-			# useful["SpellList"]
 
 		elif ans["__type__"] == "LifePointsRegenEndMessage":
 			useful["maxLifePoints"] = ans["maxLifePoints"]
@@ -471,18 +429,9 @@ def read(type, data: Data):
 			useful["mp"]=ans["movementPointsCurrent"]
 			useful["lifepoints"]=ans["lifePoints"]
 			useful["maxLifePoints"]=ans["maxLifePoints"]
+
 		elif ans["__type__"] == "GameRolePlayPlayerLifeStatusMessage":
 			useful["phenix"] = ans["phenixMapId"]
-		# elif ans["__type__"] == "GameActionFightMarkCellsMessage":
-		#     cells = []
-		#     if ans["mark"]["active"]:
-		#         for cell in ans["mark"]["cells"]:
-		#             cells.append(cell)
-		#         useful["fight"]["markedcells"].append(ans["sourceId"], cells)
-
-		elif ans["__type__"] == "GameFightTurnStartPlayingMessage":
-			#     my turn i think
-			pass
 
 
 		elif ans["__type__"] == "TreasureHuntDigRequestAnswerMessage" and 'hunt' in useful:
@@ -508,6 +457,7 @@ def read(type, data: Data):
 		elif ans["__type__"]=="TreasureHuntFinishedMessage":
 			logging.info('hunt finished')
 			del useful["hunt"]
+
 		elif ans["__type__"] == "GameFightShowFighterMessage":
 			id = int(ans["informations"]["contextualId"])
 			if id == useful["contextualId"]:
@@ -515,6 +465,7 @@ def read(type, data: Data):
 				useful["fight"]["my_teamid"] = ans["informations"]["spawnInfo"]["teamId"]
 				useful["my_level"] = ans["informations"]["level"]
 				useful["fight"]["ap"] = ans["informations"]["stats"]["actionPoints"]
+
 			elif id < 0 and id not in useful["fight"]["mysummons"]:
 				useful["fight"]["enemyteamMembers"][id]["cellid"] = ans["informations"]["disposition"]["cellId"]
 				useful["fight"]["enemyteamMembers"][id]["lifepoints"] = ans["informations"]["stats"]["lifePoints"]
@@ -561,28 +512,6 @@ def read(type, data: Data):
 						useful["fight"]["teamMembers"][id] = {}
 						useful["fight"]["teamMembers"][id]["cellid"] = cellid
 
-		elif ans["__type__"] == "GameFightHumanReadyStateMessage":
-			useful["fight"]["fight_state"] = "Ready"
-
-		# elif ans["__type__"] == "ChallengeInfoMessage":
-		#     logging.info(ans)
-
-		elif ans["__type__"] == "SequenceStartMessage":
-			useful["fight"]["sequence"] = (ans["authorId"], ans["sequenceType"])
-
-		elif ans["__type__"] == "SequenceEndMessage":
-			actiontaken = ans["actionId"]
-			# if actiontaken == 5:
-			#     logging.info("fighter moved")
-			#     logging.info(ans["authorId"])
-			useful["fight"]["sequence"] = ("sequence", useful["fight"]["sequence"])
-
-		elif ans["__type__"] == "GameFightTurnFinishMessage":
-			useful["fight"]['afk'] = True
-
-		# elif ans["__type__"] == "GameFightTurnReadyMessage":
-		# 	id = useful["fight"]["TurnReadyRequest"]
-		# 	useful["fight"]["TurnReadyRequest"] = (id, "Ready")
 
 		elif ans["__type__"] == "GameActionFightSlideMessage":
 			try:
@@ -592,13 +521,6 @@ def read(type, data: Data):
 					useful["fight"]["enemyteamMembers"][ans["targetId"]]["cellid"] = ans["endCellId"]
 			except:
 				logging.error('fight slide message error')
-			# try:
-				# if ans["targetId"] < 0 and ans["targetId"] not in useful["fight"]["mysummons"]:
-					# useful["fight"]["enemyteamMembers"][int(ans["targetId"])]["cellid"] = ans["endCellId"]
-			# except:
-				# pass
-		# elif ans["__type__"] == "GameFightTurnReadyRequestMessage":
-		# 	useful["fight"]["TurnReadyRequest"] = ans["id"]
 
 		elif ans["__type__"] == "GameFightTurnEndMessage":
 			if ans["id"]==useful['contextualId']:
@@ -624,24 +546,13 @@ def read(type, data: Data):
 					else:
 						del useful["fight"]["teamMembers"][id]
 			except:
-				# print("dead id already deleted")
 				pass
-
-		# elif ans["__type__"] == "GameActionFightExchangePositionsMessage":
-			# pass
-			# clone
-
-		# elif ans["__type__"] == "GameActionFightKillMessage":
-			# tagetid = ans["targetId"]
-			# sourceid = ans["sourceId"]
-			# logging.warn(str(sourceid) + " killed ", str(tagetid))
 
 		elif ans["__type__"] == "GameActionFightDeathMessage":
 			tagetid = ans["targetId"]
 			sourceid = ans["sourceId"]
 			if tagetid in useful["fight"]["enemyteamMembers"]:
 				del useful["fight"]["enemyteamMembers"][tagetid]
-			# logging.warning(str(tagetid) + " died ")
 
 		elif ans["__type__"] == "GameFightStartingMessage":
 			id = 700
@@ -736,23 +647,12 @@ def read(type, data: Data):
 		elif ans["__type__"] == "GameActionFightNoSpellCastMessage":
 			useful["fight"]["outofsight"] = True
 
-		elif ans["__type__"] == "GameRolePlayMonsterAngryAtPlayerMessage":
-			# Run  {'__type__': 'GameRolePlayMonsterAngryAtPlayerMessage', 'playerId': useful["contextualId"], 'monsterGroupId': -20002.0, 'angryStartTime': 1581617218215.0, 'attackTime': 1581617227403.0}
-			pass
-		elif ans["__type__"] == "GameRolePlayMonsterNotAngryAtPlayerMessage":
-			#  {'__type__': 'GameRolePlayMonsterNotAngryAtPlayerMessage', 'playerId': useful["contextualId"], 'monsterGroupId': -20002.0}
-			pass
-		# elif ans["__type__"] == "PopupWarningMessage":
-		#     id = 6134
-		#     logging.warning(ans)
 		elif ans["__type__"] == "TextInformationMessage":
 			if ans["msgId"] in (436,437):
 				useful["wait"]=int(ans["parameters"][0])
 
 		elif ans["__type__"] == "InventoryContentMessage":
 			useful["kamas"] = ans["kamas"]
-			# for obj in ans["objects"]:
-			#     useful["inventory"][obj["objectGID"]] = obj["quantity"]
 
 		elif ans["__type__"] == "KamasUpdateMessage":
 			useful["kamas"] = ans["kamasTotal"]
@@ -788,41 +688,9 @@ def read(type, data: Data):
 				useful['backup']=False
 				logging.warning('Server backup finished')
 
-		elif ans["__type__"] == "JobDescriptionMessage":
-			# for desc in ans['jobsDescription']:
-			#     if str(desc['jobId']) in useful['jobs'].keys():
-			#         useful['jobs'][str(desc['jobId'])]['skills'] = desc['skills']
-			#     else:
-			#         useful['jobs'][str(desc['jobId'])] = {'skills': desc['skills']}
-			pass
-
-		elif ans["__type__"] == "JobLevelUpMessage":
-			pass
-			# TODO     useful['jobs'][str(ans['jobsDescription']['jobId'])]['level'] = ans['newLevel']
-			#          KeyError: '26'
-			# useful['jobs'][str(ans['jobsDescription']['jobId'])]['level'] = ans['newLevel']
-			# useful['jobs'][str(ans['jobsDescription']['jobId'])]['skills'] = ans['jobsDescription']['skills']
-
-		# elif ans["__type__"] == "SystemMessageDisplayMessage":
-		#     logging.warning("SystemMessageDisplayMessage ", ans)
-
 
 		elif ans["__type__"] == "GameFightEndMessage":
-			# print(ans)
-			for result in ans["results"]:
-				if result["__type__"] == "FightResultPlayerListEntry":
-					if result["id"] == useful["contextualId"]:
-						# logging.warning(" Lost fight")
-						# logging.warning(ans)
-						useful["fight"] = {'alive': result['alive']}
-
 			useful["infight"] = False
-
-
-		# elif ans["__type__"] == "ChallengeResultMessage":
-		#     logging.info("fight ended?")
-		#     if ans["success"]:
-		#         logging.info("fight ended succes?")
 
 		elif ans["__type__"] == "InteractiveUsedMessage" and ans["entityId"] == useful["contextualId"]:
 			useful['Harvesting'] = ans["elemId"]
@@ -830,42 +698,28 @@ def read(type, data: Data):
 		elif ans["__type__"] == "InteractiveUseEndedMessage" and useful['Harvesting'] == ans["elemId"]:
 			useful['Harvesting'] = False
 
-		elif ans["__type__"] == "BasicNoOperationMessage":
-			pass
-
-		elif ans["__type__"] == "BasicTimeMessage":
-			pass
-
-		elif ans["__type__"] == "MapFightCountMessage":
-			useful["fightCount"] = ans["fightCount"]
-
 		elif ans["__type__"] == "NotificationByServerMessage":
-			# TODO check what the fuck is this
 			id = ans["id"]
-			# logging.warning(ans)
-			parameters = ans["parameters"]
-			forceopen = ans["forceOpen"]
-			if id == 10:
-				print("CharacterLevelUp")
-			elif id in [13, 12]:
-				print("PlayerIsDead")
-			elif id == 37:
+			# parameters = ans["parameters"]
+			# forceopen = ans["forceOpen"]
+			# if id == 10:
+				# print("CharacterLevelUp")
+			# elif id in [13, 12]:
+				# print("PlayerIsDead")
+			if id == 37:
 				useful["full_inventory"] = True
 				logging.info("Full inventory")
-			elif id == 14:
-				print("turned to a ghost")
+			# elif id == 14:
+				# print("turned to a ghost")
 
 		elif ans["__type__"] == "GameContextRemoveElementMessage":
-			# logging.critical(ans)
 			try:
 				if int(ans["id"]) < 0:
 					del useful["map_mobs"][ans["id"]]
 				else:
 					del useful["map_players"][ans["id"]]
 			except:
-				# logging.error("deleting unixisting actor")
 				pass
-
 
 		else:
 			flag = False
