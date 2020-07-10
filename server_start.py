@@ -1,4 +1,4 @@
-def launch_in_process(conn,client,name,server):
+def launch_in_process(conn,client,name,server,algo):
 	from zlib import decompress	
 	from data import Data
 	from server_protocol import read, msg_from_id, types, write, logging,useful,client_name
@@ -8,7 +8,7 @@ def launch_in_process(conn,client,name,server):
 	from time import sleep,strftime
 	from threading import Thread
 	global collection,wait,client_name,func,prevd,waitp,buf,red_flag,connected
-	collection,wait,client_name,connected=MongoClient('mongodb://localhost:27017/').admin, lambda x,y:sleep(uniform(x,y)),name,True
+	collection,wait,client_name,connected=MongoClient('mongodb+srv://carbon:bot@carbon-9bthr.gcp.mongodb.net/test?retryWrites=true&w=majority').carbon_db, lambda x,y:sleep(uniform(x,y)),name,True
 	func,prevd,waitp,red_flag=lambda x:collection.nodes.find_one({'mapid':x}, {'coord'}),None,b'',0
 	logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'log-{name} - {server}.txt', level=logging.DEBUG)
 	logging.raiseExceptions = False
@@ -920,7 +920,9 @@ def launch_in_process(conn,client,name,server):
 				waitp=b''
 				red_flag=0
 			logging.error(f'Error in Start',exc_info=1)
-
+        def explore():
+            teleport('astrub')
+            for x in collection.nodes.find_one()
 	def sniffer():
 		global connected
 		try:
@@ -929,9 +931,7 @@ def launch_in_process(conn,client,name,server):
 			connected=False
 	buf=Buffer()
 	thread=Thread(target=sniffer).start()
-	# treasure_hunt()
-	while connected:
-		sleep(2)
+	treasure_hunt()  if algo==b'1' xp() elif algo==b'2' explore() elif algo==b'3' else logging.error('wrong algorithm option')
 	if thread:	thread.join()
 	conn.close()
 	logging.info('\n\n\nProcess Terminated\n\n\n')

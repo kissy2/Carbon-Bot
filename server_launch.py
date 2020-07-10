@@ -10,7 +10,7 @@ if __name__=='__main__':
 		try:
 			conn.settimeout(30)
 			conn.setblocking(1)
-			client_key,client_name,server_name=conn.recv(100).decode().split('\n')
+			client_key,client_name,server_name,algo=conn.recv(100).decode().split('\n')
 		except:
 			conn.close()
 			print('Invaled session arguments or took more than 30 seconds to send api key')
@@ -27,7 +27,7 @@ if __name__=='__main__':
 				connected[client_key]=0
 			connected[client_key] += 1
 			print('Connected clients : ', reduce(lambda x,y:x+y,connected.values(),0) ,'\n', connected)
-			p=Process(target=f,args=(conn,client,client_name,server_name))
+			p=Process(target=f,args=(conn,client,client_name,server_name,algo))
 			p.start()
 			p.join()
 			connected[client_key]-=1
@@ -37,7 +37,7 @@ if __name__=='__main__':
 			conn.close()
 	print('Initiating new session')
 	s,connected,keys = socket(AF_INET, SOCK_STREAM),{},{'kissy':100,'bigbootybolbol':100,'ziedrasel3asba':1,'hazemhentai':1,'flantmayaf3alech':1}
-	s.bind((gethostbyname(gethostname()),16969))#(gethostbyname(gethostname()))
+	s.bind((gethostbyname(gethostname()),8080))#(gethostbyname(gethostname()))
 	s.listen(100)#maximum number of simultaneous connections
 	while 1:
 		print('Waiting for connection from carbon bot client')
