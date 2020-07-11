@@ -6,7 +6,7 @@ import random
 from functools import reduce
 import json
 import logging
-prev,client_name=None,None
+prev=None
 
 with (Path(__file__).parent / "protocol.pk").open("rb") as f:
 	types = pickle.load(f)
@@ -46,7 +46,8 @@ useful = {
 		  "full_inventory": False,
 		  "backup":False,
 		  "in_haven_bag": False,
-		  'threat':None
+		  'threat':None,
+		  'name':None
 		  }
 
 tmp = {}
@@ -85,7 +86,7 @@ def addMapComplementaryInformationsDataMessage(ans):
 	useful["mapid"] = ans["mapId"]
 	useful["subAreaId"] = ans["subAreaId"]
 	for actor in ans["actors"]:
-		if not useful['contextualId'] and 'name' in actor and actor['name']== client_name:
+		if not useful['contextualId'] and 'name' in actor and actor['name']== useful['name']:
 			useful['accountId'],useful['contextualId']=actor['accountId'],actor['contextualId']
 		# This if was commented, why?
 		if actor["__type__"] == "GameRolePlayMerchantInformations":
@@ -724,8 +725,7 @@ def read(type, data: Data):
 		else:
 			flag = False
 		return ans
-	except Exception as e:
-		print('Error in protocol')
+	except:
 		logging.error(f'Error in protocol ',exc_info=1)
 
 
