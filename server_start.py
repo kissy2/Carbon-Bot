@@ -22,7 +22,7 @@ def launch_in_process(conn,client,name,server,algo,zone):
 	def click(cellid,offx=0,offy=0,alt=0,direction=None,c=1,s=.5,so=.5):
 		global prevd
 		try:
-			limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+11) if odd else (x[0],x[1]+24) ,'n':lambda x,odd:(x[0],x[1]-21) if odd else (x[0],x[1]-8),'w':lambda x,odd:(x[0]-45,x[1]) if odd else (x[0]-18,x[1]),'e':lambda x,odd:(x[0]+18,x[1]) if odd else (x[0]+45,x[1])},251,15,cellid//14,cellid % 14
+			limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+11) if odd else (x[0],x[1]+24) ,'n':lambda x,odd:(x[0],x[1]-21) if odd else (x[0],x[1]-8),'w':lambda x,odd:(x[0]-50,x[1]) if odd else (x[0]-23,x[1]),'e':lambda x,odd:(x[0]+23,x[1]) if odd else (x[0]+50,x[1])},251,15,cellid//14,cellid % 14
 			if odd:=line%2:	x+=31
 			if prevd=='d':
 				prevd=None
@@ -221,9 +221,11 @@ def launch_in_process(conn,client,name,server,algo,zone):
 
 	def move_fight(c):
 		counter=5
+		logging.info(f'in move {c},{useful["mypos"]}')
 		while counter and c!=useful['mypos'] and useful['fight']['mp']:
 			click(c,c=2,s=1)
 			counter-=1
+		logging.info(f'move return {useful["mypos"]}')
 		return useful['mypos']
 
 	def check_spells(spells,buffs,mat,treasure):
@@ -238,7 +240,8 @@ def launch_in_process(conn,client,name,server,algo,zone):
 					for y,x,k,v in ((y,x,k,v) for y in get_closest_enemy(x0,y0,[p],mat,useful['fight']['mp']) for k,v in spells.items() for x in y[1]):
 						if useful['infight'] and useful['fight']['ap']>2:
 							if y[0][0] in useful['fight']['enemyteamMembers'] and (ok1 or v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0) >= (calc:=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])) and calc >=v['range'][0] and not v['fc'] and (not v['inline'] or x[1]==y[0][1] or x[2]==y[0][2]) and (not v['sight'] or x[0]>-1)):
-								if move_fight(t:=abs(x[0]))!=t:	break
+								logging.info(f'call move 1 {p},{x[0]}')
+								if (p:=move_fight(t:=abs(x[0])))!=t:	break
 								c,counter=v['cpt'],3
 								while useful['infight'] and y[0][0] in useful['fight']['enemyteamMembers'] and counter and v['ap']<=useful['fight']['ap']:
 									press(k,s=.2)
@@ -260,6 +263,7 @@ def launch_in_process(conn,client,name,server,algo,zone):
 							calc=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])
 							if mat[abs(x[0])]==2 and x[0]>-1 and v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0)>=calc and (not v['inline'] or x[1]==y[0][1] or x[2]==y[0][2]) and x[0]!=useful['fight']['enemyteamMembers'][y[0][0]]['cellid'] and calc<m:
 								m,x1,y1=calc,x[1],x[2]
+								logging.info('move 2')
 								if move_fight((t:=get_path(x0,y0,x1,y1,mat))[min(useful['fight']['mp'],len(t)-1)])!=t[-1] and not buffs['1']['fc'] and buffs['1']['ap']<=useful['fight']['ap']:
 									press('{VK_CONTROL DOWN}',s=.25)
 									press('1',s=.25)
@@ -288,7 +292,7 @@ def launch_in_process(conn,client,name,server,algo,zone):
 
 	def fight(treasure=False):
 		try:
-			logging.info(f'Enter fight\nuseful : {useful}')
+			logging.info(f'Enter fight')
 			press('{VK_SHIFT}')
 			try:
 				if not useful['fight']['lock']:
@@ -357,7 +361,7 @@ def launch_in_process(conn,client,name,server,algo,zone):
 			check_admin()
 			click(cell:=get_closest(e[0],set_mat(e[2])[1],e[1]),direction=e[1])
 			if cond_wait(2,2.5,['mapid',prev,4,wrapper(click,cell,direction=e[1]) if e[0]!='d' else wrapper(click,cell,direction=e[1],offx=7,offy=7)])==-1 and 'hunt' in useful or not connected:
-				logging.info('Abandon current hunt from move function')
+				logging.info('Abandon current hunt from move function') 
 				useful['retake']=True
 				del useful['hunt']
 				assert 0
@@ -447,7 +451,7 @@ def launch_in_process(conn,client,name,server,algo,zone):
 						logging.info(f'Dofus sama clue in node {last}')
 						check_hint(j)
 						logging.info(f'currentstep after try {useful["hunt"]["currentstep"]}')
-						if  prev!=useful['hunt']['currentstep']:
+						if  j!=len(useful['hunt']['flags']):
 							update_treasure(last,prev,current_coord)
 							return last
 				except:
@@ -457,7 +461,7 @@ def launch_in_process(conn,client,name,server,algo,zone):
 					update_treasure(last:=get_current_node(1),prev,current_coord)
 				else:
 					logging.info('Trying random fix')
-					for _ in range(useful['hunt']['availableRetryCount']):
+					while useful['hunt']['availableRetryCount']:
 						#add testing to all nodes in given direction
 						last=move([*collection.nodes.find_one({'_id':last},{directions[useful['hunt']['currentstep']['direction']][0],'coord'})[directions[useful['hunt']['currentstep']['direction']][0]]][0])
 						logging.info(f"Fix {last} {directions[useful['hunt']['currentstep']['direction']][0]}")
@@ -555,15 +559,13 @@ def launch_in_process(conn,client,name,server,algo,zone):
 							break
 						else:
 							for x in next_node:
-								last,prev=move(x,sneaky=sneaky),useful['hunt']['currentstep']
+								last=move(x,sneaky=sneaky)
 								if useful['mapid'] in {y['mapId'] for y in useful['hunt']['flags']}:
 									logging.info(f"skip current map {x} {useful['mapid']} {useful['hunt']['flags']}")
 									if x==next_node[-1]:	skip=True
 								elif not check_hint(j,False if length else True):
 									logging.info(f'Failed flagging the clue on this map {x}')
 									if x==next_node[-1]:	fail=True#try fix
-								elif prev!=useful['hunt']['currentstep']:
-									break
 							if skip or fail: break
 					if not skip:
 						if 'result' in useful['hunt'] and useful['hunt']['result']==4:
@@ -789,6 +791,7 @@ def launch_in_process(conn,client,name,server,algo,zone):
 							logging.info('done sleeping')
 							useful['lifepoints']=useful['maxLifePoints']
 						for x,y in temp:
+							logging.info(f'{x} {y}')
 							if 'alllevel' in y and y['alllevel']<useful['my_level']*threshold and y['cellId'] not in [c['cellId']-28*r for c in useful['map_players'].values() for r in range(2)] and y['cellId'] not in [(c['cellId'] if not mlr else c['cellId']-(14 if (ooe:=c['cellId']//14%2) else 15) if mlr==1 else c['cellId']-(13 if ooe else 14))-28*r for c in useful['map_npc'].values() for mlr in range(3) for r in range(4)]:
 								counter,state=4,None
 								press('{VK_SHIFT}',s=.5)
@@ -803,7 +806,7 @@ def launch_in_process(conn,client,name,server,algo,zone):
 						else:
 							loop=False
 			except:
-				logging.error(f'Error in level_up zone : {zone}\ttemp {temp}',exc_info=1)
+				logging.error(f'Error in level_up zone : {zone}\ntemp {temp}',exc_info=1)
 
 	class Buffer(Data):
 		def end(self):

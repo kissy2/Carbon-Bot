@@ -76,7 +76,7 @@ def hook(hook_args,app=None):
 		prev=False
 		while not get_window(hook_args[-1]):
 			if prev : press(app,'~',s=2)
-			click(app,650,230,c=2,s=2)
+			click(app,650,230,c=3,s=2)
 			press(app,hook_args[0],s=2)
 			press(app,'{TAB}',s=2)
 			press(app,hook_args[1],s=2)
@@ -88,9 +88,12 @@ def hook(hook_args,app=None):
 	finally:
 		Popen('setx eca 0',stdout=DEVNULL)
 
-def sniffer(conn,gsa):
+def sniffer(conn,gsa,pid):
 	try:
 		s,next_seq,wait,last10=socket(AF_INET,SOCK_RAW),None,[],[]
+		for x in Popen("netstat -no",stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1].split(b'\r\n')[4:]:
+			if b'5555' in x and pid in x:
+				client_port=int.to_bytes(int(x[(t:=x.find(b':')+1):x.find(b' ',t)]),2,'big')
 		s.bind((gethostbyname(gethostname()),0))
 		s.setsockopt(IPPROTO_IP, IP_HDRINCL, 1)
 		s.ioctl(SIO_RCVALL, RCVALL_ON)
@@ -98,32 +101,32 @@ def sniffer(conn,gsa):
 			idata,addr=s.recvfrom(1500)
 			if addr[0]==gsa:
 				rdata=idata[20:]
+				if rdata[2:4]!= client_port:	continue
 				data=rdata[(rdata[12]>>4)*4:]
 				seq=int.from_bytes(rdata[4:8],'big')
-				if seq in last10:
-					continue
+				if seq in last10:	continue
 				if data:
 					last10=last10[-9:]+[seq]
-					if next_seq and  seq != next_seq:
+					if next_seq and  seq != next_seq:	
 						wait.append((seq,data))
 					elif wait:
 						wait.append((seq,data))
 						wait.sort(key=lambda w: w[0])    
-						for i in wait:
+						for i in wait:	
 							conn.sendto(len((compressed:=compress(i[1]))).to_bytes(2,'big')+compressed,server)
 						next_seq,wait=i[0]+len(i[1]),[]
 					else:
 						next_seq=seq+len(data)
-						if data:
+						if data:	
 							conn.sendto(len(compressed:=compress(data)).to_bytes(2,'big')+compressed,server)
 	except Exception as e:
 		print(e)
 	finally:
 		s.close()
 
-def execute(s,addr,app):
-	app=get_hwnd(app)
-	thread=Thread(target=sniffer,args=(s,addr))
+def execute(s,addr,window):
+	app=get_hwnd(window)
+	thread=Thread(target=sniffer,args=(s,addr,str(window.process_id).encode()))
 	thread.start()
 	try:
 		while (data:=s.recv(1500)):
