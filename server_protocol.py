@@ -47,7 +47,8 @@ useful = {
 		  "backup":False,
 		  "in_haven_bag": False,
 		  'threat':None,
-		  'name':None
+		  'name':None,
+		  'reset':False
 		  }
 
 tmp = {}
@@ -257,34 +258,35 @@ def addStatedElementUpdatedMessage(ans):
 def read(type, data: Data):
 	try:
 		global prev
-		if type is None:
-			return
-		if type is False:
-			type = types_from_id[data.readUnsignedShort()]
-		elif isinstance(type, str):
-			if type in primitives:
-				return primitives[type][0](data)
-			type = types[type]
-		if type["parent"] is not None:
-			ans = read(type["parent"], data)
-			ans["__type__"] = type["name"]
-		else:
-
-			ans = dict(__type__=type["name"])
-
-		ans.update(readBooleans(type["boolVars"], data))
-		for var in type["vars"]:
-			if var["optional"]:
-				if not data.readByte():
-					continue
-			if var["length"] is not None:
-				ans[var["name"]] = readVec(var, data)
+		try:
+			if type is None:
+				return
+			if type is False:
+				type = types_from_id[data.readUnsignedShort()]
+			elif isinstance(type, str):
+				if type in primitives:
+					return primitives[type][0](data)
+				type = types[type]
+			if type["parent"] is not None:
+				ans = read(type["parent"], data)
+				ans["__type__"] = type["name"]
 			else:
-				ans[var["name"]] = read(var["type"], data)
+				ans = dict(__type__=type["name"])
+			ans.update(readBooleans(type["boolVars"], data))
+			for var in type["vars"]:
+				if var["optional"]:
+					if not data.readByte():
+						continue
+				if var["length"] is not None:
+					ans[var["name"]] = readVec(var, data)
+				else:
+					ans[var["name"]] = read(var["type"], data)
 
-		if type["hash_function"] and data.remaining() == 48:
-			ans["hash_function"] = data.read(48)
-		flag = True
+			if type["hash_function"] and data.remaining() == 48:
+				ans["hash_function"] = data.read(48)
+			flag = True
+		except:
+			useful['reset']=True
 
 		# logging.info(f'{ans}\n')
 		

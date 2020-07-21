@@ -29,6 +29,7 @@ def click(app,x,y,c=1,s=0):
 
 def press(app,k,s=0):
 	try:
+		print(k)
 		app.send_keystrokes(k)
 		if s:	sleep(s)
 	except RuntimeError as rte:
@@ -130,6 +131,7 @@ def execute(s,addr,window):
 	thread.start()
 	try:
 		while (data:=s.recv(1500)):
+			#check app
 			for p in data[:-3].split(b'$$$'):
 				if (args:=p.split(b'\n'))[0]==b'c':
 					click(app,bti(args[1]),bti(args[2]),bti(args[3]))
