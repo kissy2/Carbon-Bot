@@ -93,7 +93,7 @@ def sniffer(conn,gsa,pid):
 	try:
 		s,next_seq,wait,last10=socket(AF_INET,SOCK_RAW),None,[],[]
 		for x in Popen("netstat -no",stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1].split(b'\r\n')[4:]:
-			if b'5555' in x and pid in x:
+			if (b'5555' in x or b'443' in x) and pid in x:
 				client_port=int.to_bytes(int(x[(t:=x.find(b':')+1):x.find(b' ',t)]),2,'big')
 		s.bind((gethostbyname(gethostname()),0))
 		s.setsockopt(IPPROTO_IP, IP_HDRINCL, 1)

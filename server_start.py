@@ -19,25 +19,25 @@ def launch_in_process(conn,client,name,server,algo,zone,fix_list,lock):
 		logging.error('connection closed by client')
 		return
 	def click(cellid,offx=0,offy=0,alt=0,direction=None,c=1,s=.5,so=.5):
-		global prevd
+		# global prevd
 		try:
 			if hasattr(cellid,'__next__'):
 				cellid=cellid.__next__()
 			limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+11) if odd else (x[0],x[1]+24) ,'n':lambda x,odd:(x[0],x[1]-21) if odd else (x[0],x[1]-8),'w':lambda x,odd:(x[0]-50,x[1]) if odd else (x[0]-23,x[1]),'e':lambda x,odd:(x[0]+23,x[1]) if odd else (x[0]+50,x[1])},251,15,cellid//14,cellid % 14
 			if odd:=line%2:	x+=31
-			if prevd=='d':
-				prevd=None
-				press('{VK_SHIFT DOWN}')
-				press('{VK_SHIFT DOWN}')
-				click(useful['mypos'],s=.2)
-				press('{VK_SHIFT}')
+			# if prevd=='d':
+			# 	prevd=None
+			# 	press('{VK_SHIFT DOWN}')
+			# 	press('{VK_SHIFT DOWN}')
+			# 	click(useful['mypos'],s=.2)
+			# 	press('{VK_SHIFT}')
 			if direction not in (None,'d'):
 				if useful['mapid']==95420418 and direction in ('e','w'):
 					alt=12
 				elif useful['mapid']==90702849 and direction=='e':
 					alt=-16
 				x,y=limit[direction]((x,y),odd)
-			prevd=direction
+			# prevd=direction
 			# logging.info(f'Click : {cellid} , {offx} ,{offy}, {alt}, {direction}')
 			send(b'c\n'+(x+ceil(row*62.4)+floor(offx*.687)).to_bytes(2,'big',signed=True)+b'\n'+(y+floor(15.5*line)+ceil(offy*.6)-8*alt).to_bytes(2,'big',signed=True)+b'\n'+c.to_bytes(2,'big'))
 			if s : wait(s,s+so)
@@ -345,7 +345,7 @@ def launch_in_process(conn,client,name,server,algo,zone,fix_list,lock):
 			prev=useful['mypos']
 			wait(2,3)
 			for _ in range(2):
-				click(554,offy=40,s=.5)
+				click(554,offy=120,s=.5)
 				press('~',s=.5)
 			return prev
 		except:
@@ -405,7 +405,7 @@ def launch_in_process(conn,client,name,server,algo,zone,fix_list,lock):
 				direction,test_coord=directions[hint['direction']][-1],lambda x,y,x1,y1,d:x>=x1 if d=='4' else x<=x1 if d=='0' else y<=y1 if d=='2' else y>=y1
 				for d in directions.items():
 					logging.info(f'updating direction : {d}')
-					start,i=last,10	
+					start,i=last,11	
 					while i and (cur:=collection.nodes.find_one({'_id':start}))[d[1][0]]:
 						if last==start:
 							x,y=cur['coord'][0],cur['coord'][1]
@@ -418,28 +418,29 @@ def launch_in_process(conn,client,name,server,algo,zone,fix_list,lock):
 							i=1
 							logging.info(f'Stop updating on direction {d} last node is {start}')
 						logging.info(f'updating {cur["coord"]}')
-						if temp2:=collection.treasure.find_one({'_id':(id:=f'{(x1:=cur["coord"][0])},{(y1:=cur["coord"][1])}')}):
-							if directions[d[0]][-1] in temp2:
-								for t in temp2[directions[d[0]][-1]]:
-									if t['id']==hint['poiLabelId']:
-										if direction==directions[d[0]][-1] and test_coord(start_coord[0],start_coord[-1],x1,y1,direction):
-											t['x'],t['y']=x,y
-										elif test_coord(x,y,t['x'],t['y'],directions[d[0]][-1]):
-											t['x'],t['y']=x,y
-										else:
-											i=1
-										break
+						if x!=(x1:=cur["coord"][0]) and y!=(y1:=cur["coord"][1]):
+							if temp2:=collection.treasure.find_one({'_id':(id:=f'{x1},{y1}')}):
+								if directions[d[0]][-1] in temp2:
+									for t in temp2[directions[d[0]][-1]]:
+										if t['id']==hint['poiLabelId']:
+											if direction==directions[d[0]][-1] and test_coord(start_coord[0],start_coord[-1],x1,y1,direction):
+												t['x'],t['y']=x,y
+											elif test_coord(x,y,t['x'],t['y'],directions[d[0]][-1]):
+												t['x'],t['y']=x,y
+											else:
+												i=1
+											break
+									else:
+										temp2[directions[d[0]][-1]].append({'id':hint['poiLabelId'],'x':x,'y':y})
 								else:
-									temp2[directions[d[0]][-1]].append({'id':hint['poiLabelId'],'x':x,'y':y})
+									temp2[directions[d[0]][-1]]=[{'id':hint['poiLabelId'],'x':x,'y':y}]
+								collection.treasure.update_one({'_id':id},{'$set':{directions[d[0]][-1]:temp2[directions[d[0]][-1]]}})
 							else:
-								temp2[directions[d[0]][-1]]=[{'id':hint['poiLabelId'],'x':x,'y':y}]
-							collection.treasure.update_one({'_id':id},{'$set':{directions[d[0]][-1]:temp2[directions[d[0]][-1]]}})
-						else:
-							collection.treasure.insert_one({'_id':id},{'$set':{directions[d[0]][-1]:[{'id':hint['poiLabelId'],'x':x,'y':y}]}})
+								collection.treasure.insert_one({'_id':id},{'$set':{directions[d[0]][-1]:[{'id':hint['poiLabelId'],'x':x,'y':y}]}})
 						i-=1
-				with open('D:/sniffbot2.0-light/assets/hints.json', 'r', encoding='utf8') as f:
+				with open('./hints.json', 'r', encoding='utf8') as f:
 					a=load(f)+[{'coord':f'{x},{y}','name':collection.named_ids.find_one({'_id':hint['poiLabelId']})['name'],'direction':direction,'start':start_coord}]
-				with open('D:/sniffbot2.0-light/assets/hints.json', 'w', encoding='utf8') as f:
+				with open('./hints.json', 'w', encoding='utf8') as f:
 					dump(a,f)
 			except:
 				logging.error('Failed updating missing clue',exc_info=True)
@@ -516,7 +517,7 @@ def launch_in_process(conn,client,name,server,algo,zone,fix_list,lock):
 						if not ret:
 							notify(b'TREASER HUNT\nSET DOORS/CAVES')
 							wait_fix()
-							cur=collection.nodes.find_one({'_id':x},t)##not ideal didn't check 2 straight doors
+							cur=collection.nodes.find_one({'_id':get_current_node(1)},t)##not ideal didn't check 2 straight doors
 			return [cur['_id']] if not ret else ret	
 		e=get_current_node(1,128452097,4)
 		while 1:
@@ -525,8 +526,8 @@ def launch_in_process(conn,client,name,server,algo,zone,fix_list,lock):
 				if 'hunt' not in useful:
 					move(128452097,zaap=True,exit=e)
 					while 'hunt' not in useful:
-						click(554,offy=40,s=1)
-						click(288,direction='d',s=1)
+						click(554,offy=120,s=1)
+						click(288,s=1)
 						press('{DOWN}',s=.5)
 						press('~',s=6)
 						if 'retake' in useful and useful['retake']:
@@ -547,6 +548,10 @@ def launch_in_process(conn,client,name,server,algo,zone,fix_list,lock):
 							last=move("12002")
 						elif last =="12002" and useful["hunt"]["currentstep"]["direction"]!=6:
 							last=move("508")
+						elif last=="8078" and useful["hunt"]["currentstep"]["direction"]==6:
+							last=move("8077")
+						elif last =="8077" and useful["hunt"]["currentstep"]["direction"]!=6:
+							last=move("8078")
 						if 'poiLabelId' in useful['hunt']['currentstep']:
 							logging.info(f'Looking for clue {useful["hunt"]["currentstep"]["poiLabelId"]} on Dofus Map')
 							strcell=str(current_coord[0])+","+str(current_coord[1])
@@ -561,14 +566,17 @@ def launch_in_process(conn,client,name,server,algo,zone,fix_list,lock):
 								last,skip=fix(),True
 								break
 						else:
-							sneaky,t=useful['hunt']['currentstep']['npcId'],[directions[useful['hunt']['currentstep']['direction']][0],"d"]
+							sneaky,temp,t,tt=useful['hunt']['currentstep']['npcId'],last,{directions[useful['hunt']['currentstep']['direction']][0]:1,"d":1},{directions[useful['hunt']['currentstep']['direction']][0]:1,"d":1,"walkable":1}
 							try:
-								temp=last
 								for _ in range(10):
-									for y,x in ((y,x) for y in t for x in [*collection.nodes.find_one({'_id':temp},t)[y]]):
-										if collection.nodes.find_one({'_id':x},t)[directions[useful['hunt']['currentstep']['direction']][0]]:#not accurate didn't check exact path if multinode or 2 straight doors
-											break
-									temp=x
+									calc=0
+									for y in t:
+										for x in [*collection.nodes.find_one({'_id':temp},t)[y]]:
+											tn,temp=collection.nodes.find_one({'_id':x},tt),x
+											if ((l:=len(tn['walkable']))>calc and tn[y] or tn['d']):
+												temp,calc=tn['_id'],l
+										if calc:	break
+									else: break
 								next_node=[temp]
 							except Exception as e:
 								logging.info(f'sneaky error {e}')
@@ -646,7 +654,7 @@ def launch_in_process(conn,client,name,server,algo,zone,fix_list,lock):
 			press('{VK_ESCAPE}',s=5)
 		count=3
 		while useful['mapid']!=162793472 and connected:
-			click(554,offy=40,s=.5)
+			click(554,offy=120,s=.5)
 			press('h')
 			wait_check_fight(4,5)
 			check_admin()
@@ -659,7 +667,7 @@ def launch_in_process(conn,client,name,server,algo,zone,fix_list,lock):
 		while not useful['dialog'] and connected:
 			click(173, -10, -10,s=2.5,so=3.5)
 			if counter>5:
-				logging.warning('teleport counter surpassed')
+				logging.warning(f'teleport counter surpassed {useful["mapid"]}')
 				press('{VK_SHIFT}')
 				click(300,s=1)
 			counter+=1
