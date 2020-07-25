@@ -48,11 +48,10 @@ useful = {
 		  "in_haven_bag": False,
 		  'threat':None,
 		  'name':None,
-		  'reset':False
+		  'reset':False,
+		  'client_render_time':0,
+		  'mount':{}
 		  }
-
-tmp = {}
-
 
 def readVec(var, data):
 	assert var["length"] is not None
@@ -86,6 +85,7 @@ def addMapComplementaryInformationsDataMessage(ans):
 	useful["map_players"] = {}
 	useful["mapid"] = ans["mapId"]
 	useful["subAreaId"] = ans["subAreaId"]
+	tmp={}
 	for actor in ans["actors"]:
 		if not useful['contextualId'] and 'name' in actor and actor['name']== useful['name']:
 			useful['accountId'],useful['contextualId']=actor['accountId'],actor['contextualId']
@@ -132,8 +132,8 @@ def addMapComplementaryInformationsDataMessage(ans):
 			tmp[elmentid] = {}
 			tmp[elmentid]["elementCellId"] = elemnt2["elementCellId"]
 			tmp[elmentid]["elementState"] = elemnt2["elementState"]
-		# logging.info("added element")
-		# logging.info(elemnt2)
+
+	useful["client_render_time"]=len(tmp)
 	for element in ans["interactiveElements"]:
 		if element["enabledSkills"]:
 			try:
@@ -287,6 +287,7 @@ def read(type, data: Data):
 			flag = True
 		except:
 			useful['reset']=True
+			return {}
 
 		# logging.info(f'{ans}\n')
 		
@@ -296,6 +297,13 @@ def read(type, data: Data):
 					useful['fight']['spectator']=ans['state']
 				elif ans['option'] == 2:
 					useful['fight']['lock']=ans['state']
+
+		elif ans["__type__"]=="MountClientData":
+			useful['mount']['lvl']=ans['level']
+			useful['mount']['energy']=ans['energy']
+
+		elif ans["__type__"]=="MountRidingMessage":
+			useful['mount']['riding']=ans['isRiding']
 
 		elif ans["__type__"] == "GameFightNewRoundMessage":
 			useful["fight"]["round"] = ans["roundNumber"]

@@ -7,45 +7,41 @@ from winsound import PlaySound,SND_LOOP,SND_ASYNC,SND_FILENAME,SND_ALIAS
 from subprocess import Popen,DEVNULL,PIPE
 from multiprocessing import Process
 from threading import Thread
-from time import sleep
+from time import sleep,strftime
 from platform import release
 if win10:=release()=='10':
 	from win10toast import ToastNotifier
 	notify=ToastNotifier()
 global api_args
-get_hwnd,get_window,bti,conn,nl,server,api_args=lambda hwnd:Application().connect(handle=hwnd.handle).top_window(),lambda text:find_elements(title_re=f'^{text}'),lambda b:int.from_bytes(b,'big',signed=True),connect('cbd',isolation_level=None),'\n\n',("localhost", 16969),None
+get_hwnd,get_window,bti,conn,nl,server,api_args=lambda hwnd:Application().connect(handle=hwnd.handle).top_window(),lambda text:find_elements(title_re=f'^{text}'),lambda b:int.from_bytes(b,'big',signed=True),connect('cbd',isolation_level=None),'\n\n',("51.103.139.195", 16969),None
 conn.cursor().execute('create table if not exists accounts(login not null,password not null,name not null,server not null,primary key (login, name , server))')
 
 
 def click(app,x,y,c=1,s=0):
 	try:
-		for _ in range(c):
-			app.click(coords=(x,y))
+		for _ in range(c):	app.click(coords=(x,y))
 		if s:	sleep(s)
 	except RuntimeError as rte:
 		print(f'RuntimeError in Click',rte)
-		sleep(5)
-		click(app,x,y,c,s)
+		sleep(8)
 
 def press(app,k,s=0):
 	try:
-		print(k)
 		app.send_keystrokes(k)
 		if s:	sleep(s)
 	except RuntimeError as rte:
 		print(f'RuntimeError in Press',rte)
-		sleep(5)
-		press(app,k,s)
+		sleep(8)
 	
 def alert(app,severity):
 	app.set_focus()
 	if severity=='high':
-		PlaySound(f'./assets/threat_{severity}', SND_LOOP+SND_ASYNC)
+		PlaySound(f'./threat_{severity}', SND_LOOP+SND_ASYNC)
 		input("MODERATOR NOTIFICATION RESPOND QUICKLY!!!!")
 		PlaySound(None,0)
 	elif severity=='medium':
 		for _ in range(5):
-			PlaySound(f'./assets/threat_{severity}', SND_FILENAME)
+			PlaySound(f'./threat_{severity}', SND_FILENAME)
 	elif severity=='low':
 		PlaySound("SystemHand", SND_ALIAS)
 	app.minimize()
@@ -93,13 +89,13 @@ def sniffer(conn,gsa,pid):
 	try:
 		s,next_seq,wait,last10=socket(AF_INET,SOCK_RAW),None,[],[]
 		for x in Popen("netstat -no",stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1].split(b'\r\n')[4:]:
-			if b'5555' in x and pid in x:
+			if (b'5555' in x or b'443' in x) and pid in x:
 				client_port=int.to_bytes(int(x[(t:=x.find(b':')+1):x.find(b' ',t)]),2,'big')
 		s.bind((gethostbyname(gethostname()),0))
 		s.setsockopt(IPPROTO_IP, IP_HDRINCL, 1)
 		s.ioctl(SIO_RCVALL, RCVALL_ON)
-		while 1: 
-			idata,addr=s.recvfrom(1500)
+		while 1:
+			idata,addr=s.recvfrom(65565)
 			if addr[0]==gsa:
 				rdata=idata[20:]
 				if rdata[2:4]!= client_port:	continue
@@ -121,7 +117,7 @@ def sniffer(conn,gsa,pid):
 						if data:	
 							conn.sendto(len(compressed:=compress(data)).to_bytes(2,'big')+compressed,server)
 	except Exception as e:
-		print(e)
+		print('sniffer error',e)
 	finally:
 		s.close()
 
@@ -130,7 +126,7 @@ def execute(s,addr,window):
 	thread=Thread(target=sniffer,args=(s,addr,str(window.process_id).encode()))
 	thread.start()
 	try:
-		while (data:=s.recv(1500)):
+		while (data:=s.recv(1024)):
 			#check app
 			for p in data[:-3].split(b'$$$'):
 				if (args:=p.split(b'\n'))[0]==b'c':
@@ -140,9 +136,15 @@ def execute(s,addr,window):
 				elif args[0]==b'a':
 					alert(app,args[1].decode())
 				elif args[0]==b'n' and win10:
-					notify.show_toast(args[1].decode(),args[2].decode())
+					notify.show_toast((x:=args[1].decode()),(y:=args[2].decode()),duration=30,threaded=True)
+					r=open("notifications.txt","a+")
+					r.seek(0,0)
+					r=r.read()
+					with open('notifications.txt','w') as f:
+						f.seek(0,0)
+						f.write('%s : %s , %s\n'%(x,strftime("%A, %d %B %Y %I:%M %p"),y)+r)
 	except Exception as e:
-		print(e)
+		print('exec error',e)
 		s.close()
 		#close app & sniffer thread
 
@@ -157,7 +159,7 @@ def new_session(session_args):
 		s.setblocking(1)
 		if not api_args:	api_args=(input('Enter Api Key :\n>> ')+'\n'+(pi:=input('Choose An Algorithm :\n1 - Treasure Hunt\n2 - Level Up (change map to start leveling)\n3 - Explore Zaaps (you need to have access to havenbag && already have astrub zaap)\n>> '))+'\n'+(input('Choose A Leveling Area :\n1 - Incarnam(1-10)\n2 - Astrub City(10-20)\n3 - Astrub Fields(20-30)\n4 - Tainela(30-40)\n5 - Goball Corner(30-40)\n>> ') if pi=='2' else '0')).encode()
 		s.sendto((session_args[-2]+'\n'+session_args[-1]+'\n').encode()+api_args,server)
-		if not (addr:=s.recv(100).decode()):
+		if not (addr:=s.recv(64).decode()):
 			print('Invalid Key or maximum connection attempt reached')
 			return
 		print('Key accepted')
@@ -166,7 +168,7 @@ def new_session(session_args):
 		print('Server not responding')
 		s.close()
 	except Exception as e:
-		print(e)
+		print('session error',e)
 		s.close()
 
 if __name__=="__main__":
