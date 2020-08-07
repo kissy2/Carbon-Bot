@@ -6,16 +6,16 @@ from pywinauto.findwindows import find_elements
 from winsound import PlaySound,SND_LOOP,SND_ASYNC,SND_FILENAME,SND_ALIAS
 from subprocess import Popen,DEVNULL,PIPE
 from multiprocessing import Process
-from threading import Thread
 from time import sleep,strftime
 from platform import release
+from scapy.all import AsyncSniffer
+from scapy.all import Raw, IP, TCP
 if win10:=release()=='10':
 	from win10toast import ToastNotifier
 	notify=ToastNotifier()
-global api_args
-get_hwnd,get_window,bti,conn,nl,server,api_args=lambda hwnd:Application().connect(handle=hwnd.handle).top_window(),lambda text:find_elements(title_re=f'^{text}'),lambda b:int.from_bytes(b,'big',signed=True),connect('cbd',isolation_level=None),'\n\n',("51.103.139.195", 8080),None
+global parameters
+get_hwnd,get_window,bti,conn,nl,server,parameters=lambda hwnd:Application().connect(handle=hwnd.handle).top_window(),lambda text:find_elements(title_re=f'^{text}'),lambda b:int.from_bytes(b,'big',signed=True),connect('cbd',isolation_level=None),'\n\n',("localhost", 16969),None
 conn.cursor().execute('create table if not exists accounts(login not null,password not null,name not null,server not null,primary key (login, name , server))')
-# paths,resources=['ash&chestnut', 'aspen&tench&snowdrop', 'aspen', 'cod&corn&belladonna', 'elm&belladonna', 'elm&edelweiss', 'elm&kaliptus', 'elm&mandrake', 'elm&millet', 'elm1', 'elm2', 'elm3', 'fastxpwood', 'holy_bamboo', 'icefish', 'kaliptus', 'malt&hemp&rye_1', 'malt&hemp&rye_2', 'mandrake', 'ns_ash', 'rice&pandkin', 'walnut&oak', 'mandrake1', 'iron&copper&bronze_0', 'iron&copper&bronze_1', 'iron&copper&bronze_2', 'iron&copper&bronze_3', 'iron&copper&bronze_4', 'iron&copper&bronze_5'],['Frosteez', 'Salikronia', 'Limpet', 'Icefish', 'Obsidian', 'Mahaquany Wood', 'Snowdrop', 'Aspen Wood', 'Quisnoa', 'Sepiolite', 'Swordfish', 'Holy Bamboo Wood', 'Tench', 'Millet', 'Mandrake', 'Elm Wood', 'Dolomite', 'Dark Bamboo Wood', 'Cod', 'Hornbeam Wood', 'Gold', 'Lard Bass', 'Belladonna', 'Corn', 'Kaliptus Wood', 'Sickle-Hammerhead Shark', 'Ebony Wood', 'Hemp', 'Monkfish', 'Bauxite', 'Ginseng', 'Blue Ray', 'Hazel Wood', 'Silver', 'Pandkin Seed', 'Malt', 'Cherry Wood', 'Perch', 'Bamboo Wood', 'Grey Sea Bream', 'Yew Wood', 'Rye', 'Rice', 'Edelweiss', 'Tin', 'Silicate', 'Eel', 'Oliviolet Wood', 'Kralove', 'Manganese', 'Maple Wood', 'Freyesque Orchid', 'Flax', 'Pike', 'Shiny Sardine', 'Bombu Wood', 'Wild Mint', 'Hop', 'Ediem Carp', 'Cobalt', 'Oak Wood', 'Breaded Fish', 'Walnut Wood', 'Oats', 'Kittenfish', 'Five-Leaf Clover', 'Bronze', 'Fujibakama Leaf', 'Crab Surimi', 'Sage', 'Chestnut Wood', 'Copper', 'Trout', 'Barley', 'Grawn', 'Iron', 'Gudgeon', 'Contest Snapper', 'Wheat', 'Nettles', 'Ash Wood']
 
 
 def click(app,x,y,c=1,s=0):
@@ -69,7 +69,7 @@ def hook(hook_args,app=None):
 			sleep(20)
 		app.minimize()
 		app=get_hwnd(window[0])
-		app.move_window(x=-10, y=0, width=1365, height=768, repaint=True)
+		app.move_window(x=-10, y=0, width=1400, height=768, repaint=True)
 		app.minimize()
 		prev=False
 		while not get_window(hook_args[-1]):
@@ -85,48 +85,49 @@ def hook(hook_args,app=None):
 		print('Hooking dofus client failed ',e)
 	finally:
 		Popen('setx eca 0',stdout=DEVNULL)
+import logging
+logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'logs/client.txt', level=logging.DEBUG)
+logging.raiseExceptions = False
 
-def sniffer(conn,gsa,pid):
+def sniffer(p,conn,name):
 	try:
-		s,next_seq,wait,last10=socket(AF_INET,SOCK_RAW),None,[],[]
-		for x in Popen("netstat -no",stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1].split(b'\r\n')[4:]:
-			if (b'5555' in x or b'443' in x) and pid in x:
-				client_port=int.to_bytes(int(x[(t:=x.find(b':')+1):x.find(b' ',t)]),2,'big')
-		s.bind((gethostbyname(gethostname()),0))
-		s.setsockopt(IPPROTO_IP, IP_HDRINCL, 1)
-		s.ioctl(SIO_RCVALL, RCVALL_ON)
-		while 1:
-			idata,addr=s.recvfrom(65565)
-			if addr[0]==gsa:
-				rdata=idata[20:]
-				if rdata[2:4]!= client_port:	continue
-				data=rdata[(rdata[12]>>4)*4:]
-				seq=int.from_bytes(rdata[4:8],'big')
-				if seq in last10:	continue
-				if data:
-					last10=last10[-9:]+[seq]
-					if next_seq and  seq != next_seq:	
-						wait.append((seq,data))
-					elif wait:
-						wait.append((seq,data))
-						wait.sort(key=lambda w: w[0])    
-						for i in wait:	
-							conn.sendto(len((compressed:=compress(i[1]))).to_bytes(2,'big')+compressed,server)
-						next_seq,wait=i[0]+len(i[1]),[]
-					else:
-						next_seq=seq+len(data)
-						if data:	
-							conn.sendto(len(compressed:=compress(data)).to_bytes(2,'big')+compressed,server)
+		global next_seq,wait,last20
+		data=p[Raw].__bytes__()
+		seq,lendata=p[TCP].seq,len(data)
+		logging.info(f'{name} , {seq} , {next_seq} , {lendata} , {seq in last20} , {len(wait)}')
+		if seq in last20:	
+			if last20[seq] < lendata:
+				next_seq=seq+lendata
+				while next_seq in last20:	next_seq+=last20[next_seq]
+				logging.info(f'reset seq {next_seq}')
+			else:	return
+		last20={x:last20[x] for x in [*last20][-19:]}
+		last20[seq]=lendata
+		if next_seq and  seq != next_seq:	
+			wait.append((seq,data))
+		elif wait:
+			wait.append((seq,data))
+			wait.sort(key=lambda w: w[0])    
+			for i in wait:		conn.sendto(len((compressed:=compress(i[1]))).to_bytes(2,'big')+compressed,server)
+			next_seq,wait=i[0]+len(i[1]),[]
+		else:
+			next_seq=seq+lendata
+			conn.sendto(len(compressed:=compress(data)).to_bytes(2,'big')+compressed,server)
 	except Exception as e:
-		print('sniffer error',e)
-	finally:
-		s.close()
+		print(f'error in sniffer {e}')
 
-def execute(s,addr,window):
-	app=get_hwnd(window)
-	thread=Thread(target=sniffer,args=(s,addr,str(window.process_id).encode()))
-	thread.start()
+
+def execute(s,addr,window,name):
 	try:
+		app,pid=get_hwnd(window),str(window.process_id).encode()
+		global next_seq,wait,last20
+		next_seq,wait,last20=None,[],{}
+		for x in Popen("netstat -no",stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1].split(b'\r\n')[4:]:
+			if pid in x and (b'5555' in x or b'443' in x):
+				client_port=(x[(t:=x.find(b':')+1):x.find(b' ',t)]).decode()
+				break
+		print(addr,client_port,pid)
+		AsyncSniffer(filter=f'tcp and dst port {client_port} and host {addr}', lfilter=lambda p: p.haslayer(Raw),prn=lambda p: sniffer(p,s,name)).start()
 		while (data:=s.recv(1024)):
 			#check app
 			for p in data[:-3].split(b'$$$'):
@@ -147,10 +148,15 @@ def execute(s,addr,window):
 	except Exception as e:
 		print('exec error',e)
 		s.close()
-		#close app & sniffer thread
+		app.close()
 
 def new_session(session_args):
-	global api_args
+	def safe_mode():
+		with open('harvest.opt','r') as f:	temp=f.read().encode()
+		while 1:
+			if (inp:=input('\nActivate safe mode (you\'re character will collect resources only if there is no other player on same map) ?\n1 - Yes\n2 - No\n>>')) in ('1','2'):	return temp+b'\n'+inp.encode()
+			else:	print('Wrong option')
+	global parameters
 	try:
 		app=hook(session_args[:-1])
 		s=socket(AF_INET,SOCK_STREAM)
@@ -158,13 +164,33 @@ def new_session(session_args):
 		print('Connected')
 		s.settimeout(900)
 		s.setblocking(1)
-		if not api_args:	api_args=(input('Enter Api Key :\n>> ')+'\n'+(pi:=input('Choose An Algorithm :\n1 - Treasure Hunt\n2 - Level Up (change map to start leveling)\n3 - Explore Zaaps (you need to have access to havenbag && already have astrub zaap)\n>> '))+'\n'+(input('Choose A Leveling Area :\n1 - Incarnam(1-10)\n2 - Astrub City(10-20)\n3 - Astrub Fields(20-30)\n4 - Tainela(30-40)\n5 - Goball Corner(30-40)\n>> ') if pi=='2' else '0')).encode()
-		s.sendto((session_args[-2]+'\n'+session_args[-1]+'\n').encode()+api_args,server)
+		if not parameters:
+			key=input('Enter Api Key :\n>> ').encode()
+			algo=input('\nChoose An Algorithm :\n1 - Treasure Hunt\n2 - Harvest\n3 - Level Up (change map to start leveling)\n4 - Explore Zaaps (you need to have access to havenbag && already have astrub zaap)\n>> ').encode()
+			parameters=key+b'\n'+algo+b'\n'
+			if algo == b'1':
+				while 1:
+					if (inp:=input('\nDo you want to harvest resources while doing Treasure Hunt ?\n1 - Yes\n2 - No\n>>'))=='1':
+						parameters+=safe_mode()
+						break
+					elif inp=='2':	break
+					else:	print('Wrong option')
+			elif algo == b'2':
+				parameters+=safe_mode()
+			elif algo == b'3':
+				while 1:
+					if (inp:=input('\nChoose A Leveling Area :\n1 - Incarnam(1-10)\n2 - Astrub City(10-20)\n3 - Astrub Fields(20-30)\n4 - Tainela(30-40)\n5 - Goball Corner(30-40)\n>> ')) in ('1','2','3','4','5'):
+						parameters+=inp.encode()
+						break
+					else:	print('Wrong option')
+		s.sendto((session_args[-2]+'\n'+session_args[-1]+'\n').encode()+parameters,server)
 		if not (addr:=s.recv(64).decode()):
 			print('Invalid Key or maximum connection attempt reached')
 			return
 		print('Key accepted')
-		Process(target=execute,args=(s,addr,app)).start()
+		p=Process(target=execute,args=(s,addr,app,session_args[-2]))
+		p.start()
+		return p.pid
 	except timeout:
 		print('Server not responding')
 		s.close()
@@ -173,21 +199,22 @@ def new_session(session_args):
 		s.close()
 
 if __name__=="__main__":
+	execution_pool={}
+	def prn_accounts():
+		print(f'{nl[0]}Existing accounts :{nl}')
+		for raw in db.execute('select rowid,name,server,login from accounts'):
+			print(f'Id : {raw[0]}\tCharacter name : {raw[1]}\tServer name : {raw[2]}\tAccount name : {raw[3]}{nl}')
 	while 1:
 		db=conn.cursor()
-		def prn_accounts():
-			print(f'{nl[0]}Existing accounts :{nl}')
-			for raw in db.execute('select rowid,name,server,login from accounts'):
-				print(f'Id : {raw[0]}\tCharacter name : {raw[1]}\tServer name : {raw[2]}\tAccount name : {raw[3]}{nl}')
 		try:
-			if (i:=input(f'{nl[0]}Welcome to carbon bot choose one of options below :{nl}1 - Launch all accounts in the database{nl}2 - Launch specific accounts from the database{nl}3 - Add new accounts to the database{nl}4 - Delete accounts from the database{nl}5 - Show existing accounts{nl}>> '))=='1':
+			if (i:=input(f'{nl[0]}Welcome to carbon bot choose one of the options below :{nl}1 - Launch all accounts in the database{nl}2 - Launch specific accounts from the database{nl}3 - Add new accounts to the database{nl}4 - Delete accounts from the database{nl}5 - Show existing accounts{nl}>> '))=='1':
 				for row in db.execute('select * from accounts'):
-					new_session(row)
+					execution_pool[f'{row[2]}-{row[3]}']=new_session(row)
 				break
 			elif i=='2':
 				prn_accounts()
 				for row in db.execute("select * from accounts where rowid in {}".format( tuple(t) if len(t:=input(f"Enter the Ids (seperated by a comma ',' ) of the accounts you want to run{nl}>> ").split(','))>1 else f'({t[0]})')):
-					new_session(row)
+					execution_pool[f'{row[2]}-{row[3]}']=new_session(row)
 				break
 			elif i=='3':
 				first=True
@@ -205,8 +232,13 @@ if __name__=="__main__":
 				prn_accounts()
 			else:
 				print('\nWrong option try again')
-			db.close()
 		except Exception as e:
 			print('\n-------------------------------------------\nOperation failed : ',e,'\n-------------------------------------------\n')
-		finally:
-			db.close()
+	conn.close()
+	print(execution_pool)
+	# while execution_pool:
+	# 	print(f'Running instances :{nl}')
+	# 	for k,v in execution_pool.items():
+	# 		print(k,':',v)
+	# 	operation=input(f'Execute an operation over running instances:{nl}1 - Suspend Process{nl}2 - Resume Process{nl}3 - Kill Process{nl}>>')
+	# 	input('Enter ID of chosen process')
