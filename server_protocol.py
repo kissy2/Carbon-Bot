@@ -78,6 +78,7 @@ def readBooleans(boolVars, data):
 
 
 def addMapComplementaryInformationsDataMessage(ans):
+	logging.info(f'map changed {ans["mapId"]}')
 	useful["resources"] = {}
 	useful["map_mobs"] = {}
 	useful["map_merchant"] = {}
@@ -289,8 +290,10 @@ def read(type, data: Data):
 			useful['reset']=True
 			return {}
 
-		# logging.info(f'{ans}\n')
-		
+		if ans:
+			logging.info(f'{ans["__type__"]}')
+		else:
+			logging.info(f'empty {ans}')
 		if ans["__type__"] == "GameFightOptionStateUpdateMessage":
 			if useful["infight"] == ans["fightId"]:
 				if ans['option'] == 0:
@@ -326,12 +329,12 @@ def read(type, data: Data):
 
 		elif ans["__type__"] == "ChatServerMessage":
 			if '[' == ans["senderName"][0]:
-				logging.critical(f"MODERATOR MESSAGE RECEIVED {ans['senderName']}")
 				useful['threat']='high'
+				logging.critical(f"MODERATOR MESSAGE RECEIVED {ans['senderName']}")
 			if ans['channel'] == 8:
 				useful['threat']='high'
 				logging.critical(f'MODERATOR MESSAGE : {ans}\nmap : {useful["mapid"]}')
-			elif ans['channel'] == 9:			
+			elif ans['channel'] == 9:
 				useful['threat']='medium'
 			elif ans['channel'] == 0:
 				if 'bot' in (s:=str(ans["content"])):

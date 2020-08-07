@@ -2,5 +2,5 @@
 /venv/
 /.vscode/
 cbd.*
-log*
-.idea
+/logs
+/.idea

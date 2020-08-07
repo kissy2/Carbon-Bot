@@ -1,0 +1,3 @@
+paths : astrub_wells,nettle&sage
+resources : nettle,sage,edelweiss,ginseng,mandrake,ash,five,well
+priority : mandrake,ginseng,edelweiss,sage,well
