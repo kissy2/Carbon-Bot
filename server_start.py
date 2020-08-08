@@ -9,7 +9,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	from threading import Thread
 	global collection,wait,func,prevd,waitp,buf,connected,archmonsters
 	#'mongodb+srv://carbon:bot@carbon-9bthr.gcp.mongodb.net/test?retryWrites=true&w=majority').carbon_db
-	collection,wait,useful['name'],connected=MongoClient('localhost:27017').admin, lambda x,y:sleep(uniform(x,y)),name,True
+	collection,wait,useful['name'],connected=MongoClient('mongodb+srv://carbon:bot@carbon-9bthr.gcp.mongodb.net/test?retryWrites=true&w=majority').carbon_db, lambda x,y:sleep(uniform(x,y)),name,True
 	func,prevd,waitp,archmonsters=lambda x:collection.nodes.find_one({'mapid':x}, {'coord'}),None,b'',{x['raceid']:x['_id'] for x in collection.archmonsters.find({})}
 	logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'logs/log-{name} - {server}.txt', level=logging.DEBUG)
 	logging.raiseExceptions = False
@@ -622,7 +622,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 							logging.warning(f'Wrong clue after for loop')
 							last=fix()
 				if useful['hunt']['result']!=4:
-					click(70,-263,-87)
+					click(70,-263,-10)
 					wait_check_fight(3,4,Treasure=True)
 			except:
 				print('Error in Treasure Hunt')
