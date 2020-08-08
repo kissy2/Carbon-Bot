@@ -9,7 +9,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	from threading import Thread
 	global collection,wait,func,prevd,waitp,buf,connected,archmonsters
 	#'mongodb+srv://carbon:bot@carbon-9bthr.gcp.mongodb.net/test?retryWrites=true&w=majority').carbon_db
-	collection,wait,useful['name'],connected=MongoClient('mongodb+srv://carbon:bot@carbon-9bthr.gcp.mongodb.net/test?retryWrites=true&w=majority').carbon_db, lambda x,y:sleep(uniform(x,y)),name,True
+	collection,wait,useful['name'],connected=MongoClient('localhost:27017').admin, lambda x,y:sleep(uniform(x,y)),name,True
 	func,prevd,waitp,archmonsters=lambda x:collection.nodes.find_one({'mapid':x}, {'coord'}),None,b'',{x['raceid']:x['_id'] for x in collection.archmonsters.find({})}
 	logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'logs/log-{name} - {server}.txt', level=logging.DEBUG)
 	logging.raiseExceptions = False
@@ -325,7 +325,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				if prev!= index:
 					click(index,s=.5)
 			except:
-				logging.critical('too late for positioning',exc_info=1)
+				logging.warning('too late for positioning',exc_info=1)
 			spells,buffs= (
 							#spells
 							{'1': {'range': (1, 5, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
@@ -625,7 +625,6 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 					click(70,-263,-10)
 					wait_check_fight(3,4,Treasure=True)
 			except:
-				print('Error in Treasure Hunt')
 				logging.info('Error in Treasure Hunt',exc_info=True)
 
 	def get_closest(edge,mat,direction):
@@ -649,11 +648,9 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 						l.append(next_cell)
 				done.add(l[0])
 				l.pop(0)
-			print('Critical in get_closest (cells) out empty')
-			logging.critical(f'out empty in get_closest (cells) current pos {useful["mypos"]} edges : {edge}\nmat : {mat}\ndirection : {direction}')
+			logging.warning(f'out empty in get_closest (cells) current pos {useful["mypos"]} edges : {edge}\nmat : {mat}\ndirection : {direction}')
 			return generate(edge,len(edge))
 		except:
-			print('Error in get_closest (cells)')
 			logging.error(f'Error in get_closest (cells) direction : {direction}\nedge : {edge}\nmat : {mat}',exc_info=True)
 
 	def wrapper(fun, *args, **kwargs):
@@ -788,12 +785,13 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 								notify(('ArchMonster Found !\nID : %s , Name : %s , Level : %s , Coord : %s'%(name+' - '+server,archmonsters[i[0]],i[1],collection.nodes.find_one({'mapid':useful['mapid']},{'coord':1})['coord'])).encode())
 								sleep(30)#to change based on hunt mode supervied or not
 								break
-			# if useful['client_render_time']>7:	sleep(useful['client_render_time']/2)#avoid runtime error on overloaded maps
+			if useful['client_render_time']>7:	sleep(useful['client_render_time']/2) #avoid runtime error on overloaded maps
 			while useful[cond[0]] == cond[1] and connected:
 				if cond[2]!=-1:
 					if tries >= cond[2]:
 						logging.info(f'Forced break after timeout , {useful["mapid"]}')
 						# press('{VK_SHIFT}',s=.5)
+						if useful['dialog']:	press('{VK_ESCAPE}',s=1)
 						cond[3]()
 						wait_check_fight(tmin,tmax,cond[2])
 						if useful[cond[0]] == cond[1]:
@@ -994,7 +992,11 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				logging.info(f'from raw packet {id} {lenData} {len(buf)}')
 				if lenData > len(buf) - total:
 					raise IndexError
+<<<<<<< HEAD
 				if id not in [6103,6268,6130,6791,6828,3009,226,5618,5740,6830,5502,5787,951,5921,5528,5864,5696,5525,700,143,5927,6239,6312,5522,5910,5731,5523,5586,5552,6643,5787,500,6322,209,1030,5686,46,29,719,714,712,713,1099,703,5658,6465,6132,720,8,153,5670,178,5967,5708,881,6134,6135,76,5996,6486,6484,6483,780,156,471,251,160,159,36,141,566,6622]:
+=======
+				if id not in [220,398,219,80,108,5709,6051,200,6103,6268,6130,6791,6828,3009,226,5618,5740,6830,5502,5787,951,5921,5528,5864,5696,5525,700,143,5927,6239,6312,5522,5910,5731,5523,5586,5552,6643,5787,500,6322,209,1030,5686,46,29,719,714,712,713,1099,703,5658,6465,6132,720,8,153,5670,178,5967,5708,881,6134,6135,76,5996,6486,6484,6483,780,156,471,251,160,159,36,141,566,6622]:
+>>>>>>> 7c973ec5c5370a1892834b99e9be428a4cbdb85b
 					buf.read(lenData)
 					return
 				data = Data(buf.read(lenData))
@@ -1041,7 +1043,6 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				return msg_from_id[self.id]
 			except:
 				buf.reset()
-				waitp=b''
 				logging.critical(f'Error in start key error hard reset {useful["mapid"]}')
 
 		def json(self):
@@ -1057,7 +1058,8 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				data = write(type_name, json, random_hash=random_hash)
 				return Msg(type_id, data, count)
 			except:
-				logging.critical(json)
+				logging.critical(f'critical error in from_json hard reset {json}',exc_info=1)
+				buf.reset()
 
 	def on_receive(pa):
 		global buf, waitp
@@ -1087,7 +1089,6 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			buf.reset()
 			waitp=b''
 			logging.error(f'Error in Start',exc_info=1)
-			
 	def explore():
 		try:
 			logging.info('exploring zaaps')
@@ -1116,7 +1117,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	if (cond:=parameters[0] =='1' and parameters[1]) or parameters[0]=='2':
 		g,param=lambda rsc:[s for r in rsc for x in collection.skills.find({'_id':{'$regex': '^%s.*'%(r),'$options':'i'}}) for s in x['skill_id']],[[y.replace(' ','') for y in x[x.find(':')+1:].split(',')]for x in parameters[1:]]
 		param_list=[list(collection.paths.find({'$or':[{'_id':{'$regex':f'.*{x}.*','$options':'i'}} for x in param[0]]},{'zaap':1,'nodes':1})),set(g(param[1])),g(param[2]),{x['_id']:[x['offx'],x['offy']] for x in collection.exceptions.find({},{'offx':1,'offy':1})},param[-1][0]=='1']
-	treasure_hunt(1,param_list if cond else False) if parameters[0]=='1' else harvest(*param_list) if parameters[0]=='2' else level_up(parameters[1]) if parameters[0]=='3' else explore() if parameters[0]=='4' else logging.error('Wrong algorithm option')
+	treasure_hunt(0,param_list if cond else False) if parameters[0]=='1' else harvest(*param_list) if parameters[0]=='2' else level_up(parameters[1]) if parameters[0]=='3' else explore() if parameters[0]=='4' else logging.error('Wrong algorithm option')
 	if thread:	thread.join()
 	conn.close()
 	logging.info('\n\n\nProcess Terminated\n\n\n')
