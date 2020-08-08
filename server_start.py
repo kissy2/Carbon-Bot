@@ -622,7 +622,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 							logging.warning(f'Wrong clue after for loop')
 							last=fix()
 				if useful['hunt']['result']!=4:
-					click(70,-263,-87)
+					click(70,-263,-10)
 					wait_check_fight(3,4,Treasure=True)
 			except:
 				logging.info('Error in Treasure Hunt',exc_info=True)
@@ -785,7 +785,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 								notify(('ArchMonster Found !\nID : %s , Name : %s , Level : %s , Coord : %s'%(name+' - '+server,archmonsters[i[0]],i[1],collection.nodes.find_one({'mapid':useful['mapid']},{'coord':1})['coord'])).encode())
 								sleep(30)#to change based on hunt mode supervied or not
 								break
-			if useful['client_render_time']>7:	sleep(useful['client_render_time']/2)#avoid runtime error on overloaded maps
+			if useful['client_render_time']>7:	sleep(useful['client_render_time']/2) #avoid runtime error on overloaded maps
 			while useful[cond[0]] == cond[1] and connected:
 				if cond[2]!=-1:
 					if tries >= cond[2]:
@@ -1085,7 +1085,6 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			buf.reset()
 			waitp=b''
 			logging.error(f'Error in Start',exc_info=1)
-			
 	def explore():
 		try:
 			logging.info('exploring zaaps')

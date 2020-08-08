@@ -89,6 +89,12 @@ import logging
 logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'logs/client.txt', level=logging.DEBUG)
 logging.raiseExceptions = False
 
+<<<<<<< HEAD
+from scapy.all import AsyncSniffer
+from scapy.all import Raw, IP, TCP
+
+=======
+>>>>>>> 7c973ec5c5370a1892834b99e9be428a4cbdb85b
 def sniffer(p,conn,name):
 	try:
 		global next_seq,wait,last20
@@ -126,7 +132,11 @@ def execute(s,addr,window,name):
 			if pid in x and (b'5555' in x or b'443' in x):
 				client_port=(x[(t:=x.find(b':')+1):x.find(b' ',t)]).decode()
 				break
+<<<<<<< HEAD
+		print(addr,client_port)
+=======
 		print(addr,client_port,pid)
+>>>>>>> 7c973ec5c5370a1892834b99e9be428a4cbdb85b
 		AsyncSniffer(filter=f'tcp and dst port {client_port} and host {addr}', lfilter=lambda p: p.haslayer(Raw),prn=lambda p: sniffer(p,s,name)).start()
 		while (data:=s.recv(1024)):
 			#check app
@@ -199,22 +209,34 @@ def new_session(session_args):
 		s.close()
 
 if __name__=="__main__":
+<<<<<<< HEAD
+	execution_pool=[]
+=======
 	execution_pool={}
 	def prn_accounts():
 		print(f'{nl[0]}Existing accounts :{nl}')
 		for raw in db.execute('select rowid,name,server,login from accounts'):
 			print(f'Id : {raw[0]}\tCharacter name : {raw[1]}\tServer name : {raw[2]}\tAccount name : {raw[3]}{nl}')
+>>>>>>> 7c973ec5c5370a1892834b99e9be428a4cbdb85b
 	while 1:
 		db=conn.cursor()
 		try:
 			if (i:=input(f'{nl[0]}Welcome to carbon bot choose one of the options below :{nl}1 - Launch all accounts in the database{nl}2 - Launch specific accounts from the database{nl}3 - Add new accounts to the database{nl}4 - Delete accounts from the database{nl}5 - Show existing accounts{nl}>> '))=='1':
 				for row in db.execute('select * from accounts'):
+<<<<<<< HEAD
+					execution_pool.append({f'{row[2]}-{row[3]}':new_session(row)})
+=======
 					execution_pool[f'{row[2]}-{row[3]}']=new_session(row)
+>>>>>>> 7c973ec5c5370a1892834b99e9be428a4cbdb85b
 				break
 			elif i=='2':
 				prn_accounts()
 				for row in db.execute("select * from accounts where rowid in {}".format( tuple(t) if len(t:=input(f"Enter the Ids (seperated by a comma ',' ) of the accounts you want to run{nl}>> ").split(','))>1 else f'({t[0]})')):
+<<<<<<< HEAD
+					execution_pool.append({f'{row[2]}-{row[3]}':new_session(row)})
+=======
 					execution_pool[f'{row[2]}-{row[3]}']=new_session(row)
+>>>>>>> 7c973ec5c5370a1892834b99e9be428a4cbdb85b
 				break
 			elif i=='3':
 				first=True
