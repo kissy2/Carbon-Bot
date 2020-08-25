@@ -78,86 +78,88 @@ def readBooleans(boolVars, data):
 
 
 def addMapComplementaryInformationsDataMessage(ans):
-	logging.info(f'map changed {ans["mapId"]}')
-	useful["resources"] = {}
-	useful["map_mobs"] = {}
-	useful["map_merchant"] = {}
-	useful["map_npc"] = {}
-	useful["map_players"] = {}
-	useful["mapid"] = ans["mapId"]
-	useful["subAreaId"] = ans["subAreaId"]
-	tmp={}
-	for actor in ans["actors"]:
-		if not useful['contextualId'] and 'name' in actor and actor['name']== useful['name']:
-			useful['accountId'],useful['contextualId']=actor['accountId'],actor['contextualId']
-		# This if was commented, why?
-		if actor["__type__"] == "GameRolePlayMerchantInformations":
-			useful["map_merchant"][actor["contextualId"]] = {}
-			useful["map_merchant"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
+	try:
+		logging.info(f'map changed {ans["mapId"]}')
+		useful["resources"] = {}
+		useful["map_mobs"] = {}
+		useful["map_merchant"] = {}
+		useful["map_npc"] = {}
+		useful["map_players"] = {}
+		useful["mapid"] = ans["mapId"]
+		useful["subAreaId"] = ans["subAreaId"]
+		tmp={}
+		for actor in ans["actors"]:
+			if not useful['contextualId'] and 'name' in actor and actor['name']== useful['name']:
+				useful['accountId'],useful['contextualId']=actor['accountId'],actor['contextualId']
+			# This if was commented, why?
+			if actor["__type__"] == "GameRolePlayMerchantInformations":
+				useful["map_merchant"][actor["contextualId"]] = {}
+				useful["map_merchant"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
 
-		if actor["__type__"] == "GameRolePlayNpcInformations":
-			useful["map_npc"][actor["contextualId"]] = {}
-			useful["map_npc"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
+			if actor["__type__"] == "GameRolePlayNpcInformations":
+				useful["map_npc"][actor["contextualId"]] = {}
+				useful["map_npc"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
 
-		if actor["__type__"] == "GameRolePlayTreasureHintInformations":
-			useful["map_npc"][actor["npcId"]] = actor["disposition"]["cellId"]
+			if actor["__type__"] == "GameRolePlayTreasureHintInformations":
+				useful["map_npc"][actor["npcId"]] = actor["disposition"]["cellId"]
 
-		if actor["__type__"] == "GameRolePlayCharacterInformations":
-			if actor["accountId"] == useful["accountId"]:
-				useful["mypos"] = actor["disposition"]["cellId"]
-			else:
-				if "["  == actor["name"][0]:
-					useful["threat"]="high"
-					logging.critical("MODERATOR PRESENCE OF THIS MAP")
-				useful["map_players"][actor["contextualId"]] = {"name":actor["name"]}
-				useful["map_players"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
+			if actor["__type__"] == "GameRolePlayCharacterInformations":
+				if actor["accountId"] == useful["accountId"]:
+					useful["mypos"] = actor["disposition"]["cellId"]
+				else:
+					if "["  == actor["name"][0]:
+						useful["threat"]="high"
+						logging.critical("MODERATOR PRESENCE OF THIS MAP")
+					useful["map_players"][actor["contextualId"]] = {"name":actor["name"]}
+					useful["map_players"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
 
-		if actor["__type__"] == "GameRolePlayGroupMonsterInformations":
-			# logging.info("Adding mob", actor)
-			useful["map_mobs"][actor["contextualId"]] = {}
-			useful["map_mobs"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
-			useful["map_mobs"][actor["contextualId"]]["info"] = []
-			useful["map_mobs"][actor["contextualId"]]["alllevel"] = int(
-				actor["staticInfos"]["mainCreatureLightInfos"]["level"])
-			useful["map_mobs"][actor["contextualId"]]["info"].append(
-				(actor["staticInfos"]["mainCreatureLightInfos"]["genericId"],
-				 actor["staticInfos"]["mainCreatureLightInfos"]["level"]))
-			for under in actor["staticInfos"]["underlings"]:
-				useful["map_mobs"][actor["contextualId"]]["info"].append((under["genericId"], under["level"]))
-				useful["map_mobs"][actor["contextualId"]]["alllevel"] += int(under["level"])
+			if actor["__type__"] == "GameRolePlayGroupMonsterInformations":
+				# logging.info("Adding mob", actor)
+				useful["map_mobs"][actor["contextualId"]] = {}
+				useful["map_mobs"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
+				useful["map_mobs"][actor["contextualId"]]["info"] = []
+				useful["map_mobs"][actor["contextualId"]]["alllevel"] = int(
+					actor["staticInfos"]["mainCreatureLightInfos"]["level"])
+				useful["map_mobs"][actor["contextualId"]]["info"].append(
+					(actor["staticInfos"]["mainCreatureLightInfos"]["genericId"],
+					 actor["staticInfos"]["mainCreatureLightInfos"]["level"]))
+				for under in actor["staticInfos"]["underlings"]:
+					useful["map_mobs"][actor["contextualId"]]["info"].append((under["genericId"], under["level"]))
+					useful["map_mobs"][actor["contextualId"]]["alllevel"] += int(under["level"])
 
-	for elemnt2 in ans["statedElements"]:
-		# logging.info("adding element")
-		if elemnt2["onCurrentMap"]:
-			elmentid = elemnt2["elementId"]
-			tmp[elmentid] = {}
-			tmp[elmentid]["elementCellId"] = elemnt2["elementCellId"]
-			tmp[elmentid]["elementState"] = elemnt2["elementState"]
+		for elemnt2 in ans["statedElements"]:
+			# logging.info("adding element")
+			if elemnt2["onCurrentMap"]:
+				elmentid = elemnt2["elementId"]
+				tmp[elmentid] = {}
+				tmp[elmentid]["elementCellId"] = elemnt2["elementCellId"]
+				tmp[elmentid]["elementState"] = elemnt2["elementState"]
 
-	useful["client_render_time"]=len(tmp)
-	for element in ans["interactiveElements"]:
-		if element["enabledSkills"]:
-			try:
-				elmentid = element["elementId"]
-				if tmp[elmentid]["elementCellId"] \
-						and element["onCurrentMap"] \
-						and element["enabledSkills"][0]["skillId"] != 114:
-					useful["resources"][elmentid] = {}
-					useful["resources"][elmentid]["elementCellId"] = tmp[elmentid]["elementCellId"]
-					useful["resources"][elmentid]["enabledSkill"] = element["enabledSkills"][0]["skillId"]
-					useful["resources"][elmentid]["elementTypeId"] = element["elementTypeId"]
-					useful["resources"][elmentid]["elementState"] = tmp[elmentid]["elementState"]
-					for map in mapinfo:
-						if map["id"] == ans["mapId"]:
-							useful["resources"][elmentid]["offset"] = map['interactives']['2'][str(elmentid)]["offset"]
-			except:
-
+		useful["client_render_time"]=len(tmp)
+		for element in ans["interactiveElements"]:
+			if element["enabledSkills"]:
 				try:
-					if element["enabledSkills"] and element["enabledSkills"][0]["skillId"]==211:
-						useful['phenix_id']=str(elmentid)
-				except :
-					pass
+					elmentid = element["elementId"]
+					if tmp[elmentid]["elementCellId"] \
+							and element["onCurrentMap"] \
+							and element["enabledSkills"][0]["skillId"] != 114:
+						useful["resources"][elmentid] = {}
+						useful["resources"][elmentid]["elementCellId"] = tmp[elmentid]["elementCellId"]
+						useful["resources"][elmentid]["enabledSkill"] = element["enabledSkills"][0]["skillId"]
+						useful["resources"][elmentid]["elementTypeId"] = element["elementTypeId"]
+						useful["resources"][elmentid]["elementState"] = tmp[elmentid]["elementState"]
+						for map in mapinfo:
+							if map["id"] == ans["mapId"]:
+								useful["resources"][elmentid]["offset"] = map['interactives']['2'][str(elmentid)]["offset"]
+				except:
 
+					try:
+						if element["enabledSkills"] and element["enabledSkills"][0]["skillId"]==211:
+							useful['phenix_id']=str(elmentid)
+					except :
+						pass
+	except:
+		logging.error(f'proto error {ans}',exc_info=1)
 def addGameMapMovementMessage(ans):
 	if ans["actorId"] == useful["contextualId"]:
 		useful["mypos"] = ans["keyMovements"][-1]
@@ -166,7 +168,10 @@ def addGameMapMovementMessage(ans):
 	else:
 		if ans["actorId"] < 0:
 			if useful["infight"]:
-				useful["fight"]["enemyteamMembers"][ans["actorId"]]["cellid"] = ans["keyMovements"][-1]
+				try:
+					useful["fight"]["enemyteamMembers"][ans["actorId"]]["cellid"] = ans["keyMovements"][-1]
+				except:
+					pass
 			if useful["infight"] == False:
 				try:
 					useful["map_mobs"][int(ans["actorId"])]["cellId"] = ans["keyMovements"][-1]
@@ -290,10 +295,10 @@ def read(type, data: Data):
 			useful['reset']=True
 			return {}
 
-		if ans:
-			logging.info(f'{ans["__type__"]}')
-		else:
-			logging.info(f'empty {ans}')
+		# if ans:
+		# 	logging.info(f'{ans["__type__"]}')
+		# else:
+		# 	logging.info(f'empty {ans}')
 		if ans["__type__"] == "GameFightOptionStateUpdateMessage":
 			if useful["infight"] == ans["fightId"]:
 				if ans['option'] == 0:
@@ -322,11 +327,13 @@ def read(type, data: Data):
 
 
 		elif ans["__type__"] == "GameRolePlayHumanoidInformations":
-			if "["  == ans["name"][0]:
-				useful["threat"]="high"
-				logging.critical(f"MODERATOR PRESENCE OF THIS MAP {ans['senderName']}")
-			useful["map_players"][ans["contextualId"]]={"name":ans["name"],"cellid":ans["disposition"]["cellId"]}
-
+			try:
+				if "["  == ans["name"][0]:
+					useful["threat"]="high"
+					logging.critical(f"MODERATOR PRESENCE OF THIS MAP {ans}")
+				useful["map_players"][ans["contextualId"]]={"name":ans["name"],"cellid":ans["disposition"]["cellId"]}
+			except:
+				logging.error(f'{ans}')
 		elif ans["__type__"] == "ChatServerMessage":
 			if '[' == ans["senderName"][0]:
 				useful['threat']='high'
@@ -338,7 +345,7 @@ def read(type, data: Data):
 				useful['threat']='medium'
 			elif ans['channel'] == 0:
 				if 'bot' in (s:=str(ans["content"])):
-					useful['threat']='medium'
+					useful['threat']='low'
 			logging.warning(f'Sender : {ans["senderName"]}\nContent : {str(ans["content"])}\nChannel : {ans["channel"]}')
 
 
@@ -352,7 +359,7 @@ def read(type, data: Data):
 			useful['threat']='high'
 
 		elif ans["__type__"] in ("ExchangeRequestedMessage","ExchangeShopStockStartedMessage","GameRolePlayPlayerFightRequestMessage","ExchangeRequestedTradeMessage","PartyInvitationMessage","GuildInvitedMessage","InviteInHavenBagOfferMessage","ExchangeReplyTaxVendorMessage"):
-			useful["dialog"],useful['threat']=True if ans["__type__"] != "ExchangeReplyTaxVendorMessage" else 2,'low'
+			useful["dialog"],useful['threat']=True if ans["__type__"] not in ("ExchangeReplyTaxVendorMessage","PartyInvitationMessage") else 2,'low'
 			logging.warning(f'Annoying Players : {ans["__type__"]}\nmap : {useful["mapid"]}')
 
 		elif ans["__type__"] == "InventoryWeightMessage":

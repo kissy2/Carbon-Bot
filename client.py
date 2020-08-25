@@ -16,8 +16,10 @@ if win10:=release()=='10':
 global parameters
 get_hwnd,get_window,bti,conn,nl,server,parameters=lambda hwnd:Application().connect(handle=hwnd.handle).top_window(),lambda text:find_elements(title_re=f'^{text}'),lambda b:int.from_bytes(b,'big',signed=True),connect('cbd',isolation_level=None),'\n\n',("localhost", 16969),None
 conn.cursor().execute('create table if not exists accounts(login not null,password not null,name not null,server not null,primary key (login, name , server))')
-
-
+# temp=[x for x in conn.cursor().execute('select * from accounts order by login')]
+# conn.cursor().execute('drop table accounts')
+# conn.cursor().execute('create table if not exists accounts(login not null,password not null,name not null,server not null,primary key (login, name , server))')
+# for x in temp:	conn.cursor().execute('insert into accounts values(?,?,?,?)',(x[0],x[1],x[2],x[3]))
 def click(app,x,y,c=1,s=0):
 	try:
 		for _ in range(c):	app.click(coords=(x,y))
@@ -41,17 +43,16 @@ def alert(app,severity):
 		input("MODERATOR NOTIFICATION RESPOND QUICKLY!!!!")
 		PlaySound(None,0)
 	elif severity=='medium':
-		for _ in range(5):
-			PlaySound(f'./threat_{severity}', SND_FILENAME)
+		for _ in range(5):	PlaySound(f'./threat_{severity}', SND_FILENAME)
 	elif severity=='low':
 		PlaySound("SystemHand", SND_ALIAS)
+	sleep(10)
 	app.minimize()
 
 def hook(hook_args,app=None):
 	try:
-		while Popen(args='REG QUERY HKCU\Environment /v eca',stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1][-2]=='1':
-			sleep(2)
-			Popen('setx eca 1',stdout=DEVNULL)
+		while Popen(args='REG QUERY HKCU\Environment /v eca',stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1][-2]=='1':	sleep(2)
+		Popen('setx eca 1',stdout=DEVNULL)
 		if app:
 			app.close()
 			sleep(5)
@@ -59,8 +60,8 @@ def hook(hook_args,app=None):
 			Popen('call "Ankama Launcher"',stdout=DEVNULL,shell=True)
 			sleep(30)
 		app = Application('uia').connect(handle=window[0].handle).windows()[0]
-		app.set_focus()#force repaint
-		sleep(1)
+		# app.set_focus()#force repaint
+		# sleep(1)
 		for x in app.children()[0].children():
 			if x.get_properties()['texts'][0]=='PLAY':
 				break
@@ -85,27 +86,21 @@ def hook(hook_args,app=None):
 		print('Hooking dofus client failed ',e)
 	finally:
 		Popen('setx eca 0',stdout=DEVNULL)
-import logging
-logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'logs/client.txt', level=logging.DEBUG)
-logging.raiseExceptions = False
+# import logging
+# logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'logs/client.txt', level=logging.DEBUG)
+# logging.raiseExceptions = False
 
-<<<<<<< HEAD
-from scapy.all import AsyncSniffer
-from scapy.all import Raw, IP, TCP
-
-=======
->>>>>>> 7c973ec5c5370a1892834b99e9be428a4cbdb85b
 def sniffer(p,conn,name):
 	try:
 		global next_seq,wait,last20
-		data=p[Raw].__bytes__()
+		data=p[Raw].load
 		seq,lendata=p[TCP].seq,len(data)
-		logging.info(f'{name} , {seq} , {next_seq} , {lendata} , {seq in last20} , {len(wait)}')
+		# logging.info(f'{name} , {seq} , {next_seq} , {lendata} , {seq in last20} , {len(wait)}')
 		if seq in last20:	
 			if last20[seq] < lendata:
 				next_seq=seq+lendata
 				while next_seq in last20:	next_seq+=last20[next_seq]
-				logging.info(f'reset seq {next_seq}')
+				# logging.info(f'reset seq {next_seq}')
 			else:	return
 		last20={x:last20[x] for x in [*last20][-19:]}
 		last20[seq]=lendata
@@ -129,15 +124,10 @@ def execute(s,addr,window,name):
 		global next_seq,wait,last20
 		next_seq,wait,last20=None,[],{}
 		for x in Popen("netstat -no",stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1].split(b'\r\n')[4:]:
-			if pid in x and (b'5555' in x or b'443' in x):
+			if pid in x and addr in x and (b'5555' in x or b'443' in x) :
 				client_port=(x[(t:=x.find(b':')+1):x.find(b' ',t)]).decode()
 				break
-<<<<<<< HEAD
-		print(addr,client_port)
-=======
-		print(addr,client_port,pid)
->>>>>>> 7c973ec5c5370a1892834b99e9be428a4cbdb85b
-		AsyncSniffer(filter=f'tcp and dst port {client_port} and host {addr}', lfilter=lambda p: p.haslayer(Raw),prn=lambda p: sniffer(p,s,name)).start()
+		AsyncSniffer(filter=f'tcp and dst port {client_port} and host {addr.decode()}', lfilter=lambda p: p.haslayer(Raw),prn=lambda p: sniffer(p,s,name)).start()
 		while (data:=s.recv(1024)):
 			#check app
 			for p in data[:-3].split(b'$$$'):
@@ -156,7 +146,7 @@ def execute(s,addr,window,name):
 						f.seek(0,0)
 						f.write('%s : %s , %s\n'%(x,strftime("%A, %d %B %Y %I:%M %p"),y)+r)
 	except Exception as e:
-		print('exec error',e)
+		# logging.critical('exec error',e)
 		s.close()
 		app.close()
 
@@ -194,7 +184,7 @@ def new_session(session_args):
 						break
 					else:	print('Wrong option')
 		s.sendto((session_args[-2]+'\n'+session_args[-1]+'\n').encode()+parameters,server)
-		if not (addr:=s.recv(64).decode()):
+		if not (addr:=s.recv(64)):
 			print('Invalid Key or maximum connection attempt reached')
 			return
 		print('Key accepted')
@@ -209,34 +199,22 @@ def new_session(session_args):
 		s.close()
 
 if __name__=="__main__":
-<<<<<<< HEAD
-	execution_pool=[]
-=======
 	execution_pool={}
 	def prn_accounts():
 		print(f'{nl[0]}Existing accounts :{nl}')
-		for raw in db.execute('select rowid,name,server,login from accounts'):
+		for raw in db.execute('select rowid,name,server,login from accounts order by rowid'):
 			print(f'Id : {raw[0]}\tCharacter name : {raw[1]}\tServer name : {raw[2]}\tAccount name : {raw[3]}{nl}')
->>>>>>> 7c973ec5c5370a1892834b99e9be428a4cbdb85b
 	while 1:
 		db=conn.cursor()
 		try:
 			if (i:=input(f'{nl[0]}Welcome to carbon bot choose one of the options below :{nl}1 - Launch all accounts in the database{nl}2 - Launch specific accounts from the database{nl}3 - Add new accounts to the database{nl}4 - Delete accounts from the database{nl}5 - Show existing accounts{nl}>> '))=='1':
 				for row in db.execute('select * from accounts'):
-<<<<<<< HEAD
-					execution_pool.append({f'{row[2]}-{row[3]}':new_session(row)})
-=======
 					execution_pool[f'{row[2]}-{row[3]}']=new_session(row)
->>>>>>> 7c973ec5c5370a1892834b99e9be428a4cbdb85b
 				break
 			elif i=='2':
 				prn_accounts()
 				for row in db.execute("select * from accounts where rowid in {}".format( tuple(t) if len(t:=input(f"Enter the Ids (seperated by a comma ',' ) of the accounts you want to run{nl}>> ").split(','))>1 else f'({t[0]})')):
-<<<<<<< HEAD
-					execution_pool.append({f'{row[2]}-{row[3]}':new_session(row)})
-=======
 					execution_pool[f'{row[2]}-{row[3]}']=new_session(row)
->>>>>>> 7c973ec5c5370a1892834b99e9be428a4cbdb85b
 				break
 			elif i=='3':
 				first=True
