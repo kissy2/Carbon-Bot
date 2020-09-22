@@ -294,7 +294,6 @@ def read(type, data: Data):
 		except:
 			useful['reset']=True
 			return {}
-
 		# if ans:
 		# 	logging.info(f'{ans["__type__"]}')
 		# else:
@@ -316,8 +315,9 @@ def read(type, data: Data):
 		elif ans["__type__"] == "GameFightNewRoundMessage":
 			useful["fight"]["round"] = ans["roundNumber"]
 
-		elif ans["__type__"] == "GameActionFightLifePointsLostMessage" and useful['contextualId']==ans['targetId']:
-			useful['lifepoints']-=ans['loss']
+		elif ans["__type__"] == "GameActionFightLifePointsLostMessage":
+			if useful['contextualId']==ans['targetId']:	useful['lifepoints']-=ans['loss']
+			elif ans['targetId'] in useful['fight']['enemyteamMembers']: useful['fight']['enemyteamMembers'][ans['targetId']]['lifepoints']-=ans['loss']
 
 		elif ans["__type__"] in ("NpcDialogCreationMessage","LockableShowCodeDialogMessage","ZaapDestinationsMessage"):
 			useful["dialog"]=True
@@ -329,7 +329,7 @@ def read(type, data: Data):
 		elif ans["__type__"] == "GameRolePlayHumanoidInformations":
 			try:
 				if "["  == ans["name"][0]:
-					useful["threat"]="high"
+					useful["threat"]="medium"
 					logging.critical(f"MODERATOR PRESENCE OF THIS MAP {ans}")
 				useful["map_players"][ans["contextualId"]]={"name":ans["name"],"cellid":ans["disposition"]["cellId"]}
 			except:
@@ -343,9 +343,9 @@ def read(type, data: Data):
 				logging.critical(f'MODERATOR MESSAGE : {ans}\nmap : {useful["mapid"]}')
 			elif ans['channel'] == 9:
 				useful['threat']='medium'
-			elif ans['channel'] == 0:
-				if 'bot' in (s:=str(ans["content"])):
-					useful['threat']='low'
+			# elif ans['channel'] == 0:
+				# if 'bot' in (s:=str(ans["content"])):
+					# useful['threat']='low'
 			logging.warning(f'Sender : {ans["senderName"]}\nContent : {str(ans["content"])}\nChannel : {ans["channel"]}')
 
 
