@@ -265,7 +265,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 												buffs['2']['fc']=3
 												click(useful['mypos'],offy=-4,s=.5)
 												press('{VK_CONTROL}')
-										else:
+										elif useful['my_level']>79:
 											press('1' if useful['my_level']<174 else '4')
 											click(useful['mypos'],offy=-4,s=.5)
 								if (p:=move_fight(t:=abs(x[0])))!=t:	break
@@ -441,6 +441,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			if j != None:
 				flags,i=useful['hunt']['flags'],4
 				while (t:=flags==useful['hunt']['flags']) and i:
+					if i != 4:	sleep(useful['client_render_time']/2) 
 					click(70,-118,-12+j*35,s=.5)
 					i-=1
 				if t:
@@ -859,7 +860,9 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			# 				if i[0] in archmonsters.keys():		
 			# 					notify(('ArchMonster Found !\nID : %s , Name : %s , Level : %s , Coord : %s'%(name+' - '+server,archmonsters[i[0]],i[1],collection.nodes.find_one({'mapid':useful['mapid']},{'coord':1})['coord'])).encode())
 			# 					break
-			if useful['client_render_time']>10 or len(useful['map_players'])>10:	sleep(5)#avoid runtime error on overloaded maps
+			if (crt:=max(useful['client_render_time'],len(useful['map_players'])))>10:	
+				logging.info(f'overloaded map sleeping {crt} s')
+				sleep(crt/2)#avoid runtime error on overloaded maps
 			while useful[cond[0]] == cond[1] and connected:
 				if cond[2]!=-1:
 					if tries >= cond[2]:
@@ -880,16 +883,19 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 					return -1
 				tries+=t if t else 1
 			if useful[cond[0]] != cond[5]:
-				logging.warning('Weird teleport')
-				if useful[cond[0]] in [collection.nodes.find_one({'_id':v},{'mapid'})['mapid'] for x in collection.nodes.find_one({'_id':cond[4]},{'n':1,'s':1,'w':1,'e':1,'d':1,'_id':0}).values() for v in x]:
+				pcoord=collection.nodes.find_one({'_id':cond[4]},{'coord'})['coord']
+				ncoord=collection.nodes.find_one({'mapid':useful[cond[0]]},{'coord'})
+				logging.warning(f'Weird teleport {pcoord,ncoord}')
+				if ncoord and  abs(pcoord[0]-ncoord['coord'][0]) + abs(pcoord[1]-ncoord['coord'][1])<2: 
+				# if useful[cond[0]] in [collection.nodes.find_one({'_id':v},{'mapid'})['mapid'] for x in collection.nodes.find_one({'_id':cond[4]},{'n':1,'s':1,'w':1,'e':1,'d':1,'_id':0}).values() for v in x]:
 					logging.info('Something went wrong while changing map')
 					buf.reset()
 					return -1
 				else:
 					press(' .~')
-					# useful['threat']='high'
+					useful['threat']='high'
 					logging.critical('Moderator teleport check !')
-					# check_admin()
+					check_admin()
 		except:
 			logging.error(f'Eroor in cond_wait {tmin} {tmax} {cond}',exc_info=True)
 
@@ -978,10 +984,8 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			n,m,counter=func(useful['mapid'])['coord'],1000,5
 			for x in sample((84935175,99095051,192415750,8914959,8913935,8912911,2885641,2884617,2883593,8129542,91753985,54534165),12):
 				if (calc:=abs((c:=func(x)['coord'])[0]-n[0])+abs(c[1]-n[1]))<m:
-					name,m=x,calc 	
-			if useful["my_level"]<20:
-				move("61")
-			elif not move(name,True):
+					name,m=x,calc 	 
+			if not move(name,True if useful["my_level"]>30 else False):
 				logging.info(f'Failed emptying inventory from this map{useful["mapid"]}')
 				return
 			while not useful['dialog']:
@@ -1081,7 +1085,6 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				if lenData > len(buf) - total:
 					raise IndexError
 				if id in (6677,6676,6675,6661,6663):
-				# if id not in [5176,60,157,566,159,5632,6454,5745,5654,6112,220,398,219,80,108,5709,6051,200,6103,6268,6130,6791,6828,3009,226,5618,5740,6830,5502,5787,951,5921,5528,5864,5696,5525,700,143,5927,6239,6312,5522,5910,5731,5523,5586,5552,6643,5787,500,6322,209,1030,5686,46,29,719,714,712,713,1099,703,5658,6465,6132,720,8,153,5670,178,5967,5708,881,6134,6135,76,5996,6486,6484,6489,6483,780,156,471,251,160,159,36,141,566,6622]:
 					buf.read(lenData)
 					return
 				data = Data(buf.read(lenData))
@@ -1178,8 +1181,8 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	def explore():
 		try:
 			logging.info('exploring zaaps')
-			# teleport('astrub')
-			while not useful['mapid']:	sleep(5)
+			teleport('astrub')
+			# while not useful['mapid']:	sleep(5) #remove on money >1000k
 			for x in collection.paths.find_one({'_id':"zaaps"},{'nodes'})['nodes']:	
 				if x!=(t:=move(x)):
 					logging.error(f'couldn\'t finish exploring stop in this node {t}')
@@ -1198,7 +1201,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	thread=Thread(target=sniffer)
 	thread.start()
 	for _ in range(3):	press('~',s=1)
-	press('{VK_NUMPAD6}',s=1)
+	press('{VK_NUMPAD6}',s=1,so=60)
 	if useful['mount'] and useful['mount']['riding']:	press('{VK_NUMPAD6}')
 	if (cond:=parameters[0] =='1' and parameters[1]) or parameters[0]=='2':
 		g,param=lambda rsc:[s for r in rsc for x in collection.skills.find({'_id':{'$regex': '^%s.*'%(r),'$options':'i'}}) for s in x['skill_id']],[[y.replace(' ','') for y in x[x.find(':')+1:].split(',')]for x in parameters[1:]]
