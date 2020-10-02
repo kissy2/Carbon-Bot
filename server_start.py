@@ -7,10 +7,10 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	from math import ceil,floor
 	from time import sleep
 	from threading import Thread
-	global collection,wait,func,prevd,waitp,buf,connected,archmonsters
+	global collection,wait,func,waitp,buf,connected,archmonsters
 	#'mongodb+srv://carbon:bot@carbon-9bthr.gcp.mongodb.net/test?retryWrites=true&w=majority').carbon_db
 	collection,wait,useful['name'],useful['server'],connected=MongoClient('localhost:27017').admin, lambda x,y:sleep(uniform(x,y)),name,server,True
-	func,prevd,waitp,archmonsters=lambda x:collection.nodes.find_one({'mapid':x}, {'coord'}),None,b'',{x['raceid']:x['_id'] for x in collection.archmonsters.find({})}
+	func,waitp,archmonsters=lambda x:collection.nodes.find_one({'mapid':x}, {'coord'}),b'',{x['raceid']:x['_id'] for x in collection.archmonsters.find({})}
 	logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'logs/log-{name} - {server}.txt', level=logging.DEBUG)
 	logging.raiseExceptions = False
 	try:
@@ -19,17 +19,10 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 		logging.error('connection closed by client')
 		return
 	def click(cellid,offx=0,offy=0,alt=0,direction=None,c=1,s=0,so=.5):
-		# global prevd
 		try:
 			if hasattr(cellid,'__next__'):	cellid=cellid.__next__()
 			limit,x,y,line,row={'s':lambda x,odd:(x[0],x[1]+5) if odd else (x[0],x[1]+20) ,'n':lambda x,odd:(x[0],x[1]-27) if odd else (x[0],x[1]-14),'w':lambda x,odd:(x[0]-50,x[1]) if odd else (x[0]-23,x[1]),'e':lambda x,odd:(x[0]+23,x[1]) if odd else (x[0]+50,x[1])},269,16,cellid//14,cellid % 14
 			if odd:=line%2:	x+=31
-			# if prevd=='d':
-				# prevd=None
-				# press('{VK_SHIFT DOWN}')
-				# press('{VK_SHIFT DOWN}')
-				# click(useful['mypos'],s=.2)
-				# press('{VK_SHIFT}')
 			if direction not in (None,'d'):
 				if useful['mapid']==95420418 and direction in ('e','w'):
 					alt=12
@@ -39,7 +32,6 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 					alt=-14 if odd else -10
 				x,y=limit[direction]((x,y),odd)
 			elif direction=='d' and useful['mapid'] in (128453121,128452097,128451073):	offx,offy=10,15 
-			# prevd=direction
 			logging.info(f'Click : {cellid}, {offx}, {offy}, {alt}, {direction} , {x+ceil(row*62.4)+floor(offx*.687)} , {y+floor(15.58*line)+ceil(offy*.55)-9*alt+38}')
 			send(b'c\n'+(x+ceil(row*62.4)+floor(offx*.687)).to_bytes(2,'big',signed=True)+b'\n'+(y+floor(15.58*line)+ceil(offy*.55)-9*alt).to_bytes(2,'big',signed=True)+b'\n'+c.to_bytes(2,'big'))
 			if s : wait(s,s+so)
@@ -181,8 +173,11 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 					break
 			return n['_id'] if cond==1 else {'interactives':n['interactives'],'walkable':n['walkable']} if cond==2 else (n['_id'],n['d']) if cond==3 else n['fightcells']
 		except:
+			# notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'get node error','utf8'))
+			buf.reset()
+			press('h')
 			logging.error(f'Error in get_current_node cond : {cond} mapid : {mapid} pos: :{pos}')
-
+			return get_current_node(cond,mapid,pos)
 	def get_path(x0,y0,x1,y1,mat,revert=True):
 		try:
 			f,done,offset=lambda x0,y0:abs(x0-x1)+abs(y0-y1),{revert_coord(x0,y0)},((0, 1), (0, -1), (-1, 0), (1, 0))
@@ -236,66 +231,66 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 		try:
 			enter,heal=True,False
 			press('~')
-			logging.info(f"{useful['fight']['round']}:{useful['fight']['enemyteamMembers']}")
+			logging.info(f"Turn ({useful['fight']['round']}) : {useful['fight']['enemyteamMembers']}")
 			while useful['infight'] and useful['fight']['ap']>2 and enter and not heal:
 				(x0,y0),ok1=switch_coord(p:=useful['mypos']),False
-				logging.info(f'health {useful["lifepoints"]} {useful["maxLifePoints"]}')
-				if treasure and useful['lifepoints']/useful['maxLifePoints']<.2:
-					logging.info(f'casting shield')
-					press('{VK_CONTROL DOWN}')
-					press('2' if lvl_cond else '4')
-					press('{VK_CONTROL}')
-					click(useful['mypos'],offy=-4)
-					buffs['2']['fc']=3
-					break
-				else:
-					for y,x,k,v in ((y,x,k,v) for y in get_closest_enemy(x0,y0,[p],mat,useful['fight']['mp']) for k,v in spells.items() for x in y[1]):
-						if useful['infight'] and useful['fight']['ap']>2:
-							if y[0][0] in useful['fight']['enemyteamMembers'] and (v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0) >= (calc:=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])) and calc >=v['range'][0] and not v['fc'] and (not v['inline'] or x[1]==y[0][1] or x[2]==y[0][2]) and (not v['sight'] or x[0]>-1) and v['ap']<=useful['fight']['ap']):
-								logging.info(f'call move 1 {p},{x[0]}')
-								if treasure and useful['fight']['enemyteamMembers'][-1]['lifepoints'] <= hpc:
-									if useful['lifepoints']!=useful['maxLifePoints']:
-										heal=True
-										break
-									else:
-										if lvl_cond:
-											if not buffs['2']['fc']: 
-												press('{VK_CONTROL DOWN}')
-												press('2')
-												buffs['2']['fc']=3
-												click(useful['mypos'],offy=-4,s=.5)
-												press('{VK_CONTROL}')
-										elif useful['my_level']>79:
-											press('1' if useful['my_level']<174 else '4')
+				for y,x,k,v in ((y,x,k,v) for y in get_closest_enemy(x0,y0,[p],mat,useful['fight']['mp']) for k,v in spells.items() for x in y[1]):
+					if useful['infight'] and useful['fight']['ap']>2:
+						if y[0][0] in useful['fight']['enemyteamMembers'] and (v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0) >= (calc:=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])) and calc >=v['range'][0] and not v['fc'] and (not v['inline'] or x[1]==y[0][1] or x[2]==y[0][2]) and (not v['sight'] or x[0]>-1) and v['ap']<=useful['fight']['ap']):
+							if treasure and useful['fight']['enemyteamMembers'][-1]['lifepoints'] <= hpc:
+								logging.info('enemy low health')
+								if useful['lifepoints']!=useful['maxLifePoints']:
+									heal=True
+									break
+								else:
+									if lvl_cond:
+										if not buffs['2']['fc']: 
+											press('{VK_CONTROL DOWN}')
+											press('2')
+											buffs['2']['fc']=3
 											click(useful['mypos'],offy=-4,s=.5)
-								if (p:=move_fight(t:=abs(x[0])))!=t:	break
-								c,counter=v['cpt'],3
-								logging.info(f"{ok1},{useful['infight']},{y[0][0] in useful['fight']['enemyteamMembers']},{counter},{v['ap']<=useful['fight']['ap']}")
-								while useful['infight'] and y[0][0] in useful['fight']['enemyteamMembers'] and counter and v['ap']<=useful['fight']['ap']:
-									logging.info(f"enemy health {useful['fight']['enemyteamMembers'][-1]['lifepoints']}")
-									if treasure and useful['fight']['enemyteamMembers'][-1]['lifepoints'] <= hpc and useful['lifepoints']!=useful['maxLifePoints']:		break
-									if treasure and useful['lifepoints']/useful['maxLifePoints']<.2:	
-										heal =True
+											press('{VK_CONTROL}')
+									elif useful['my_level']>79:
+										press('1' if useful['my_level']<174 else '4')
+										click(useful['mypos'],offy=-4,s=.5)
+							if (p:=move_fight(t:=abs(x[0])))!=t:	break
+							c,counter=v['cpt'],3
+							while useful['infight'] and y[0][0] in useful['fight']['enemyteamMembers'] and counter and v['ap']<=useful['fight']['ap']:
+								logging.info(f"enemy health {useful['fight']['enemyteamMembers'][-1]['lifepoints']}")
+								logging.info(f'my health {useful["lifepoints"]} {useful["maxLifePoints"]}')
+								if treasure and useful['fight']['enemyteamMembers'][-1]['lifepoints'] <= hpc and useful['lifepoints']!=useful['maxLifePoints']:		break
+								if treasure and useful['lifepoints']/useful['maxLifePoints']<.25:
+									logging.info(f'casting shield')
+									if lvl_cond:
+										press('{VK_CONTROL DOWN}')
+										press('2')
+										press('{VK_CONTROL}')
+										buffs['2']['fc']=3
+									else:	
+										for _ in range(2):
+											press('4' if useful['my_level']>174 else '1',s=1)
+											click(useful['mypos'],offy=-4,s=1)
+									enter=False
+									break
+								press(k)
+								ap,counter=useful['fight']['ap'],counter-1
+								click(useful['fight']['enemyteamMembers'][y[0][0]]['cellid'],offy=-4,s=1.5,so=1)
+								if useful['infight'] and ap != useful['fight']['ap']: 
+									if not (c:=c-1):
+										v['fc']=max(v['recast'],1)
+										if k=='1' and y[0][0] in useful['fight']['enemyteamMembers']:
+											ok1=True
 										break
-									press(k)
-									ap,counter=useful['fight']['ap'],counter-1
-									click(useful['fight']['enemyteamMembers'][y[0][0]]['cellid'],offy=-4,s=1.5,so=1)
-									if useful['infight'] and ap != useful['fight']['ap']: 
-										if not (c:=c-1):
-											v['fc']=max(v['recast'],1)
-											if k=='1' and y[0][0] in useful['fight']['enemyteamMembers']:
-												ok1=True
-											break
-								if ok1:	break
-						else:	break
+							if ok1:	break
+					else:	break
 				if useful['infight'] and not ok1:
 					if (jump_cond:=not buffs['1']['fc'] and buffs['1']['ap']<=useful['fight']['ap']) or heal:
 						m=600
+						logging.info('enter jump check')
 						for y,x,v in ((y,x,v) for y in get_closest_enemy(x0,y0,[p],mat,50,1) for x in y[1] for v in spells.values()) :
 							calc=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])
 							if mat[abs(x[0])]==2 and x[0]>-1 and v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0)>=calc and (not v['inline'] or x[1]==y[0][1] or x[2]==y[0][2]) and x[0]!=useful['fight']['enemyteamMembers'][y[0][0]]['cellid'] and calc<m:
 								m,x1,y1=calc,x[1],x[2]
-								logging.info(f'call move 2 {useful["mypos"]} {p}')
 								if heal and jump_cond or move_fight((t:=get_path(x0,y0,x1,y1,mat))[min(useful['fight']['mp'],len(t)-1)])!=t[-1] and jump_cond:
 									press('{VK_CONTROL DOWN}')
 									press('1')
@@ -305,6 +300,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 								break
 						buffs['1']['fc']=buffs['1']['recast']#force boost
 					elif useful['fight']['ap']>1 and not heal:
+						logging.info('checking available buffs')
 						for k,v in buffs.items():
 							if k!='1':
 								c=v['cpt']
@@ -315,6 +311,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 									click(useful['mypos'],offy=-4,s=1)
 									v['fc'],c=v['recast'],c-1
 						enter=False
+			logging.info('passing turn ')
 			for xx in (spells,buffs):
 				for x in xx.values():
 					if x['fc']:
@@ -339,7 +336,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 					press('{VK_NUMPAD6}')
 			except:
 				logging.error('lock spec mount error',exc_info=1)
-			mat,prev,mapid,hpc=get_current_node(),useful['mypos'],useful['mapid'],useful['fight']['enemyteamMembers'][-1]['lifepoints']*.15
+			mat,prev,mapid,hpc=get_current_node(),useful['mypos'],useful['mapid'],useful['fight']['enemyteamMembers'][-1]['lifepoints']*.12
 			logging.info(f'Fight mat {mat}')
 			try:
 				m=600
@@ -383,7 +380,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				while not wait(1,2) and 'turn' in useful['fight'].keys() and not useful['fight']['turn'] and connected and useful['infight'] and (counter:=counter-1):
 					check_admin()
 					logging.info('Waiting for turn')
-				if useful['fight']['round'] == prev:	break
+				if useful['fight']['round'] == prev:	buf.reset()
 				prev=useful['fight']['round']
 				spells,buffs=check_spells(spells,buffs,mat,treasure,hpc,lvl_cond)
 		except:
@@ -588,7 +585,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 						for x in collection.nodes.find({'coord':coord,'worldmap':1},{'_id':1}):
 							if pathfinder(last,x['_id']):
 								ret=[x['_id']]	
-								notify(b'TREASER HUNT\nSET DOORS/CAVES')
+								notify(bytes(f"TREASER HUNT\nSET DOORS/CAVES {useful['server']-useful['name']-last-x['_id']}"))
 								logging.info('SET DOORS/CAVES')
 								print('doors/caves possible problem')
 								break
@@ -663,7 +660,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 									ten-=1
 								next_node=[temp]
 							except:
-								logging.info('sneaky error abandon hunt',exc_info=1)
+								logging.info(f'sneaky error abandon hunt {useful["hunt"]}',exc_info=1)
 								useful['retake']=True
 								del useful['hunt']
 								assert 0
@@ -732,7 +729,6 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 
 	def teleport(text,exit=None):
 		logging.info(f'Teleporting to {text}')
-		while useful['dialog']:	press('{VK_ESCAPE}',s=5)
 		count=3
 		while useful['mapid']!=162793472 and connected: 
 			click(554,offy=120,s=.5)
@@ -861,14 +857,14 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			# 					notify(('ArchMonster Found !\nID : %s , Name : %s , Level : %s , Coord : %s'%(name+' - '+server,archmonsters[i[0]],i[1],collection.nodes.find_one({'mapid':useful['mapid']},{'coord':1})['coord'])).encode())
 			# 					break
 			if (crt:=max(useful['client_render_time'],len(useful['map_players'])))>10:	
-				logging.info(f'overloaded map sleeping {crt} s')
-				sleep(crt/2)#avoid runtime error on overloaded maps
+				logging.info(f'overloaded map sleeping {crt/2.5} s')
+				sleep(crt/2.5)#avoid runtime error on overloaded maps
 			while useful[cond[0]] == cond[1] and connected:
 				if cond[2]!=-1:
 					if tries >= cond[2]:
 						logging.info(f'Forced break after timeout , {useful["mapid"]}')
 						# press('{VK_SHIFT}',s=.5)
-						if useful['dialog']:	press('{VK_ESCAPE}',s=1)
+						# if useful['dialog']:	press('{VK_ESCAPE}',s=1)
 						click(554,offy=120,s=.5)
 						cond[3]()
 						wait_check_fight(tmin,tmax,cond[2])
@@ -886,7 +882,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				pcoord=collection.nodes.find_one({'_id':cond[4]},{'coord'})['coord']
 				ncoord=collection.nodes.find_one({'mapid':useful[cond[0]]},{'coord'})
 				logging.warning(f'Weird teleport {pcoord,ncoord}')
-				if ncoord and  abs(pcoord[0]-ncoord['coord'][0]) + abs(pcoord[1]-ncoord['coord'][1])<2: 
+				if ncoord and abs(pcoord[0]-ncoord['coord'][0]) + abs(pcoord[1]-ncoord['coord'][1])<3: 
 				# if useful[cond[0]] in [collection.nodes.find_one({'_id':v},{'mapid'})['mapid'] for x in collection.nodes.find_one({'_id':cond[4]},{'n':1,'s':1,'w':1,'e':1,'d':1,'_id':0}).values() for v in x]:
 					logging.info('Something went wrong while changing map')
 					buf.reset()
