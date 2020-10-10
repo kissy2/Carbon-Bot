@@ -157,8 +157,9 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			n -= 1
 		return True
 
-	def get_current_node(cond=0,mapid=None,pos=None):
+	def get_current_node(cond=0,mapid=None,pos=None,nested=False):
 		try:
+			logging.info(f'get current node called {useful["mapid"]}')
 			projec={'walkable':1}
 			if pos is None:
 				pos,mapid=useful['mypos'],useful['mapid']
@@ -173,11 +174,10 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 					break
 			return n['_id'] if cond==1 else {'interactives':n['interactives'],'walkable':n['walkable']} if cond==2 else (n['_id'],n['d']) if cond==3 else n['fightcells']
 		except:
-			# notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'get node error','utf8'))
 			buf.reset()
-			press('h')
 			logging.error(f'Error in get_current_node cond : {cond} mapid : {mapid} pos: :{pos}')
-			return get_current_node(cond,mapid,pos)
+			press('h',s=15)
+			return notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'get node error','utf8')) if nested else get_current_node(cond,mapid,pos,True)
 	def get_path(x0,y0,x1,y1,mat,revert=True):
 		try:
 			f,done,offset=lambda x0,y0:abs(x0-x1)+abs(y0-y1),{revert_coord(x0,y0)},((0, 1), (0, -1), (-1, 0), (1, 0))
@@ -230,7 +230,6 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	def check_spells(spells,buffs,mat,treasure,hpc,lvl_cond):
 		try:
 			enter,heal=True,False
-			press('~')
 			logging.info(f"Turn ({useful['fight']['round']}) : {useful['fight']['enemyteamMembers']}")
 			while useful['infight'] and useful['fight']['ap']>2 and enter and not heal:
 				(x0,y0),ok1=switch_coord(p:=useful['mypos']),False
@@ -373,14 +372,18 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 							 '2' : {'ap':3, 'recast':3 if lvl_cond else 4,'fc':0,'cpt':1},
 							 '3' : {'ap':3, 'recast':0,'fc':0,'cpt':2}
 							})
-			prev=None
+			prev,pc=None,0
 			while useful['infight'] and connected:
 				press('{F1}')
 				counter=5
 				while not wait(1,2) and 'turn' in useful['fight'].keys() and not useful['fight']['turn'] and connected and useful['infight'] and (counter:=counter-1):
 					check_admin()
 					logging.info('Waiting for turn')
-				if useful['fight']['round'] == prev:	buf.reset()
+				if useful['fight']['round'] == prev:	
+					logging.info('same turn')
+					pc+=1
+					buf.reset()
+				if pc > 3 :	notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'fight error','utf8'))
 				prev=useful['fight']['round']
 				spells,buffs=check_spells(spells,buffs,mat,treasure,hpc,lvl_cond)
 		except:
@@ -584,10 +587,10 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 								if x['_id']!=last:	return f(coord,x['_id'],d,True)
 						for x in collection.nodes.find({'coord':coord,'worldmap':1},{'_id':1}):
 							if pathfinder(last,x['_id']):
-								ret=[x['_id']]	
-								notify(bytes(f"TREASER HUNT\nSET DOORS/CAVES {useful['server']-useful['name']-last-x['_id']}"))
-								logging.info('SET DOORS/CAVES')
-								print('doors/caves possible problem')
+								logging.warning('Doors/Caves possible problem')
+								print('Doors/Caves possible problem')
+								notify(bytes(f"TREASER HUNT\nSET DOORS/CAVES {useful['server'],useful['name'],last,x['_id']}",'utf-8'))
+								ret=[x['_id']]
 								break
 						# wait_fix()
 						# cur=collection.nodes.find_one({'_id':get_current_node(1)},t)
@@ -735,7 +738,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			press('h')
 			wait_check_fight(4,5)
 			check_admin()
-			if not (count:=count-1):
+			if not (count:=count-1) and useful['mapid']!=162793472:
 				logging.warning(f'Could Not Teleport To HavenBag From This Map {useful["mapid"]} exit node {exit}')
 				if exit:	move(exit,exit=wrapper(teleport,text))
 				return True
@@ -887,7 +890,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 					logging.info('Something went wrong while changing map')
 					buf.reset()
 					return -1
-				else:
+				elif useful['mapid']!=162793472:
 					press(' .~')
 					useful['threat']='high'
 					logging.critical('Moderator teleport check !')
@@ -1080,7 +1083,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				# logging.info(f'from raw packet {id} {lenData} {len(buf)}')
 				if lenData > len(buf) - total:
 					raise IndexError
-				if id in (6677,6676,6675,6661,6663):
+				if id in (6675,6658,6668):
 					buf.read(lenData)
 					return
 				data = Data(buf.read(lenData))
@@ -1196,6 +1199,11 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	buf=Buffer()
 	thread=Thread(target=sniffer)
 	thread.start()
+	while 1:
+		sleep(2)
+		if useful['relog']:
+			send(b'r')
+			useful['relog']=False
 	for _ in range(3):	press('~',s=1)
 	press('{VK_NUMPAD6}',s=1,so=60)
 	if useful['mount'] and useful['mount']['riding']:	press('{VK_NUMPAD6}')

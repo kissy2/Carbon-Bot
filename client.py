@@ -25,17 +25,17 @@ def click(app,x,y,c=1,s=0):
 	try:
 		for _ in range(c):	app.click(coords=(x,y))
 		if s:	sleep(s)
-	except RuntimeError as rte:
-		print(f'RuntimeError in Click',rte)
+	except RuntimeError:
 		sleep(8)
+		print(f'RuntimeError in Click',app.print_control_identifiers())
 
 def press(app,k,s=0):
 	try:
 		app.send_keystrokes(k)
 		if s:	sleep(s)
-	except RuntimeError as rte:
-		print(f'RuntimeError in Press',rte)
+	except RuntimeError:
 		sleep(8)
+		print(f'RuntimeError in Press',app.print_control_identifiers())
 	
 def alert(app,severity):
 	app.set_focus()
@@ -130,7 +130,7 @@ def execute(s,addr,window,name):
 	def post_hook():
 		app,pid=get_hwnd(window),str(window.process_id).encode()
 		for x in Popen("netstat -no",stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1].split(b'\r\n')[4:]:
-			if pid in x and addr in x and (b'5555' in x or b'443' in x) :
+			if pid in x and addr in x and (b'5555' in x or b'443' in x):
 				client_port=(x[(t:=x.find(b':')+1):x.find(b' ',t)]).decode()
 				break
 		sniff=AsyncSniffer(filter=f'tcp and dst port {client_port} and host {addr.decode()}', lfilter=lambda p: p.haslayer(Raw),prn=lambda p: sniffer(p,s,name))
@@ -158,6 +158,12 @@ def execute(s,addr,window,name):
 					with open('notifications.txt','w') as f:
 						f.seek(0,0)
 						f.write('%s : %s , %s\n'%(x,strftime("%A, %d %B %Y %I:%M %p"),y)+r)
+				elif args[0]==b'r':
+					sniff.stop(join=True)
+					sleep(20)
+					next_seq,wait,last20=None,[],{}
+					sniff,app,pid=post_hook()
+					press(app,'~',s=10)
 	except Exception as e:
 		# logging.critical('exec error',e)
 		print('exec error',e)

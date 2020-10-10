@@ -50,7 +50,8 @@ useful = {
 		  'name':None,
 		  'reset':False,
 		  'client_render_time':0,
-		  'mount':{}
+		  'mount':{},
+		  'relog':False
 		  }
 
 def readVec(var, data):
@@ -294,16 +295,19 @@ def read(type, data: Data):
 		except:
 			useful['reset']=True
 			return {}
-		# if ans:
-		# 	logging.info(f'{ans["__type__"]}')
-		# else:
-		# 	logging.info(f'empty {ans}')
+		if ans:
+			logging.info(f'{ans}')
+		else:
+			logging.info(f'empty {ans}')
 		if ans["__type__"] == "GameFightOptionStateUpdateMessage":
 			if useful["infight"] == ans["fightId"]:
 				if ans['option'] == 0:
 					useful['fight']['spectator']=ans['state']
 				elif ans['option'] == 2:
 					useful['fight']['lock']=ans['state']
+		elif ans["__type__"] == "ReloginTokenStatusMessage":
+			print('relog')
+			useful['relog']=True
 
 		elif ans["__type__"]=="MountClientData":
 			useful['mount']['lvl']=ans['level']
@@ -477,6 +481,7 @@ def read(type, data: Data):
 
 		elif ans["__type__"]=="TreasureHuntFinishedMessage":
 			logging.info('hunt finished')
+			print(f'Hunt finished : {useful["server"]} - {useful["name"]} {strftime("%A, %d %B %Y %I:%M %p")}')
 			del useful["hunt"]
 
 		elif ans["__type__"] == "GameFightShowFighterMessage":
