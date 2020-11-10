@@ -19,6 +19,7 @@ primitives = {
 	for name in primitives
 }
 
+
 useful = {
 		  "resources": {},
 		  "fight": {},
@@ -51,7 +52,10 @@ useful = {
 		  'reset':False,
 		  'client_render_time':0,
 		  'mount':{},
-		  'relog':False
+		  'relog':False,
+		  'shortcuts':[],
+		  'inventory':{},
+		  'ready_to_sell':[]
 		  }
 
 def readVec(var, data):
@@ -80,7 +84,7 @@ def readBooleans(boolVars, data):
 
 def addMapComplementaryInformationsDataMessage(ans):
 	try:
-		logging.info(f'map changed {ans["mapId"]}')
+		logging.info(f'map changed : {ans["mapId"]}')
 		useful["resources"] = {}
 		useful["map_mobs"] = {}
 		useful["map_merchant"] = {}
@@ -90,22 +94,22 @@ def addMapComplementaryInformationsDataMessage(ans):
 		useful["subAreaId"] = ans["subAreaId"]
 		tmp={}
 		for actor in ans["actors"]:
-			if not useful['contextualId'] and 'name' in actor and actor['name']== useful['name']:
+			if (not useful['contextualId'] or not useful['accountId']) and 'name' in actor and actor['name'] == useful['name']:
 				useful['accountId'],useful['contextualId']=actor['accountId'],actor['contextualId']
-			# This if was commented, why?
-			if actor["__type__"] == "GameRolePlayMerchantInformations":
+
+			elif actor["__type__"] == "GameRolePlayMerchantInformations":
 				useful["map_merchant"][actor["contextualId"]] = {}
 				useful["map_merchant"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
 
-			if actor["__type__"] == "GameRolePlayNpcInformations":
+			elif actor["__type__"] == "GameRolePlayNpcInformations":
 				useful["map_npc"][actor["contextualId"]] = {}
 				useful["map_npc"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
 
-			if actor["__type__"] == "GameRolePlayTreasureHintInformations":
+			elif actor["__type__"] == "GameRolePlayTreasureHintInformations":
 				useful["map_npc"][actor["npcId"]] = actor["disposition"]["cellId"]
 
-			if actor["__type__"] == "GameRolePlayCharacterInformations":
-				if actor["accountId"] == useful["accountId"]:
+			elif actor["__type__"] == "GameRolePlayCharacterInformations":
+				if actor["contextualId"] == useful["contextualId"]:
 					useful["mypos"] = actor["disposition"]["cellId"]
 				else:
 					if "["  == actor["name"][0]:
@@ -114,7 +118,7 @@ def addMapComplementaryInformationsDataMessage(ans):
 					useful["map_players"][actor["contextualId"]] = {"name":actor["name"]}
 					useful["map_players"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
 
-			if actor["__type__"] == "GameRolePlayGroupMonsterInformations":
+			elif actor["__type__"] == "GameRolePlayGroupMonsterInformations":
 				# logging.info("Adding mob", actor)
 				useful["map_mobs"][actor["contextualId"]] = {}
 				useful["map_mobs"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
@@ -295,26 +299,66 @@ def read(type, data: Data):
 		except:
 			useful['reset']=True
 			return {}
-		if ans:
-			logging.info(f'{ans}')
-		else:
-			logging.info(f'empty {ans}')
+
+		# logging.info(f'{ans}')
+
 		if ans["__type__"] == "GameFightOptionStateUpdateMessage":
 			if useful["infight"] == ans["fightId"]:
 				if ans['option'] == 0:
 					useful['fight']['spectator']=ans['state']
 				elif ans['option'] == 2:
 					useful['fight']['lock']=ans['state']
-		elif ans["__type__"] == "ReloginTokenStatusMessage":
-			print('relog')
-			useful['relog']=True
 
-		elif ans["__type__"]=="MountClientData":
-			useful['mount']['lvl']=ans['level']
-			useful['mount']['energy']=ans['energy']
+		# elif ans["__type__"] == "ShortcutBarContentMessage":
+		# 	if ans['barType'] == 0:
+		# 		useful['shortcuts'] = [(x['slot']+1)%10 for x in ans['shortcuts'] if x['slot']<10 and x['itemUID']]
+		# 	elif ans['barType'] == 1:
+		# 		useful['spells'] = {x['spellId']:x['slot'] for x in ans['shortcuts']}
 
-		elif ans["__type__"]=="MountRidingMessage":
-			useful['mount']['riding']=ans['isRiding']
+		# elif ans["__type__"] == "ShortcutBarRefreshMessage":
+		# 	if ans['barType'] == 0 and ans['shortcut']['slot']<10:
+		# 		calc=(ans['shortcut']['slot']+1)%10
+		# 		if ans['shortcut']['itemUID'] and calc not in useful['shortcuts']:
+		# 			useful['shortcuts'].append(calc)
+		# 		elif calc in useful['shortcuts']:
+		# 			useful['shortcuts'].remove(calc)
+		# 		else:
+		# 			print('weird shortcut',calc,useful['shortcuts'],ans)
+
+		# elif ans["__type__"] == "InventoryContentMessage":
+		# 	for x in ans['objects']:
+		# 		if x['position'] == 63 and len(x['effects'])<10:
+		# 			useful['inventory'][x['objectGID']]={'objectUID':x['objectUID'],'quantity':x['quantity']}
+
+		# elif ans["__type__"] == "ObjectQuantityMessage":
+		# 	for x in useful['inventory'].values():
+		# 		if x['objectUID'] == ans['objectUID']:
+		# 			x['quantity']=ans['quantity']
+		# 			break
+
+		# elif ans["__type__"] == "ObjectAddedMessage":
+		# 	useful['inventory'][ans['object']['objectGID']] = {'objectUID':ans['object']['objectUID'],'quantity':ans['object']['quantity']}
+
+		# elif ans["__type__"] == "ExchangeBidPriceForSellerMessage":	
+		# 	if ans['genericId'] in useful['inventory']:
+		# 		useful['inventory'][ans['genericId']]['averagePrice'] = ans['averagePrice']
+		# 		useful['inventory'][ans['genericId']]['minimalPrices'] = ans['minimalPrices']
+		# 		useful['inventory'][ans['genericId']]['type'] = 'r' if useful['mapid']==73400322 else 'c'
+		# 		useful['ready_to_sell'].append({'genericId':ans['genericId'],'minimalPrices':ans['minimalPrices'],'averagePrice':ans['averagePrice'],'quantity':useful['inventory'][ans['genericId']]['quantity'],'type':'r' if useful['mapid']==73400322 else 'c'})
+
+		# elif ans["__type__"] == "ReloginTokenStatusMessage":
+		# 	useful['relog']=True
+
+		# elif ans["__type__"] == "InteractiveUsedMessage" and ans['entityId']== useful['contextualId']:
+		# 	# print('!!! Market Place Dialog Opened !!!',ans)
+		# 	useful['dialog']=True
+
+		elif ans["__type__"] == "MountClientData":
+			useful['mount']['lvl'] = ans['level']
+			useful['mount']['energy'] = ans['energy']
+
+		elif ans["__type__"] == "MountRidingMessage":
+			useful['mount']['riding'] = ans['isRiding']
 
 		elif ans["__type__"] == "GameFightNewRoundMessage":
 			useful["fight"]["round"] = ans["roundNumber"]
@@ -374,7 +418,7 @@ def read(type, data: Data):
 								 'MapComplementaryInformationsDataInHavenBagMessage']:
 			if ans['__type__'] == 'MapComplementaryInformationsDataInHavenBagMessage':
 				useful['in_haven_bag'] = True
-				if not useful['contextualId']:
+				if not useful['contextualId'] or not useful['accountId']:
 					useful['contextualId'],useful['accountId']=ans['actors'][0]['contextualId'],ans['actors'][0]['accountId']
 			else:
 				useful['in_haven_bag'] = False
@@ -751,7 +795,9 @@ def read(type, data: Data):
 			flag = False
 		return ans
 	except:
-		logging.error(f'Error in protocol ',exc_info=1)
+		logging.error(f'Error in protocol {ans}',exc_info=1)
+		useful['reset']=True
+
 
 
 def writeBooleans(boolVars, el, data):

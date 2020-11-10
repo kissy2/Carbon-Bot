@@ -135,6 +135,7 @@ def execute(s,addr,window,name):
 				break
 		sniff=AsyncSniffer(filter=f'tcp and dst port {client_port} and host {addr.decode()}', lfilter=lambda p: p.haslayer(Raw),prn=lambda p: sniffer(p,s,name))
 		sniff.start()
+		# print(client_port,pid,sniff)
 		return sniff,app,pid
 	try:
 		global next_seq,wait,last20
@@ -158,12 +159,12 @@ def execute(s,addr,window,name):
 					with open('notifications.txt','w') as f:
 						f.seek(0,0)
 						f.write('%s : %s , %s\n'%(x,strftime("%A, %d %B %Y %I:%M %p"),y)+r)
-				elif args[0]==b'r':
-					sniff.stop(join=True)
-					sleep(20)
-					next_seq,wait,last20=None,[],{}
-					sniff,app,pid=post_hook()
-					press(app,'~',s=10)
+				# elif args[0]==b'r':
+				# 	sniff.stop(join=True)
+				# 	sleep(20)
+				# 	next_seq,wait,last20=None,[],{}
+				# 	sniff,app,pid=post_hook()
+				# 	press(app,'{ENTER 3}',s=10)
 	except Exception as e:
 		# logging.critical('exec error',e)
 		print('exec error',e)
@@ -192,7 +193,7 @@ def new_session(session_args):
 		if not parameters:
 			# key=input('Enter Api Key :\n>> ').encode()
 			key=b"kissy"
-			algo=input('\nChoose An Algorithm :\n1 - Treasure Hunt\n2 - Harvest\n3 - Level Up (change map to start leveling)\n4 - Explore Zaaps (you need to have access to havenbag && already have astrub zaap)\n>> ').encode()
+			algo=input('\nChoose An Algorithm :\n1 - Treasure Hunt\n2 - Harvest\n3 - Level Up (change map to start leveling)\n4 - Explore Zaaps (you need to have access to havenbag && already have astrub zaap)\n5 - Sell resources\n>> ').encode()
 			parameters=key+b'\n'+algo+b'\n'
 			if algo == b'1':
 				while 1:

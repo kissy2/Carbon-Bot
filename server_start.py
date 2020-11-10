@@ -47,7 +47,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			connected=False
 
 	def press(k,s=.1,so=.5):
-		logging.info(k)
+		logging.info('press : '+k)
 		send(bytes('p\n'+k,'utf-8'))
 		wait(s,s+so)
 
@@ -55,7 +55,13 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 		send(b'n\n'+t,s)
 
 	def check_admin():
-		global connected
+		global connected,waitp
+		logging.info(f'admin check {useful["threat"]}')
+		if useful['reset']:
+			logging.warning('reset buffer')
+			useful['reset']=False
+			buf.reset()
+			waitp=b''
 		if useful['threat']:
 			send(bytes('a\n'+useful['threat'],'utf-8'),s=7 if useful['threat']=='medium' else 1)
 			if useful['threat']=='high':
@@ -159,7 +165,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 
 	def get_current_node(cond=0,mapid=None,pos=None,nested=False):
 		try:
-			logging.info(f'get current node called {useful["mapid"]}')
+			logging.info(f'get current node called {useful["mapid"]} {useful["mypos"]}')
 			projec={'walkable':1}
 			if pos is None:
 				pos,mapid=useful['mypos'],useful['mapid']
@@ -175,8 +181,8 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			return n['_id'] if cond==1 else {'interactives':n['interactives'],'walkable':n['walkable']} if cond==2 else (n['_id'],n['d']) if cond==3 else n['fightcells']
 		except:
 			buf.reset()
-			logging.error(f'Error in get_current_node cond : {cond} mapid : {mapid} pos: :{pos}')
-			press('h',s=15)
+			logging.error(f'Error in get_current_node cond : {cond} mapid : {mapid} pos: :{pos} , current mapId {useful["mapid"]}')
+			while useful['mapid']==162793472:	press('h',s=15)
 			return notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'get node error','utf8')) if nested else get_current_node(cond,mapid,pos,True)
 	def get_path(x0,y0,x1,y1,mat,revert=True):
 		try:
@@ -230,7 +236,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	def check_spells(spells,buffs,mat,treasure,hpc,lvl_cond):
 		try:
 			enter,heal=True,False
-			logging.info(f"Turn ({useful['fight']['round']}) : {useful['fight']['enemyteamMembers']}")
+			logging.info(f"Turn ({useful['fight']['round']}) : {useful['fight']['enemyteamMembers']} , Ap : {useful['fight']['ap']} , Mp : {useful['fight']['mp']}")
 			while useful['infight'] and useful['fight']['ap']>2 and enter and not heal:
 				(x0,y0),ok1=switch_coord(p:=useful['mypos']),False
 				for y,x,k,v in ((y,x,k,v) for y in get_closest_enemy(x0,y0,[p],mat,useful['fight']['mp']) for k,v in spells.items() for x in y[1]):
@@ -295,7 +301,9 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 									press('1')
 									press('{VK_CONTROL}')
 									(x0,y0)=switch_coord(p:=useful['mypos'])
-									click((t:=get_path(x0,y0,y[0][1],y[0][2],mat))[min(6 if useful['my_level']>132 else 5,len(t)-2)],offy=-4,s=1)
+									temp=get_path(x0,y0,y[0][1],y[0][2],mat)
+									t=temp[min(6 if useful['my_level']>132 else 5,len(temp)-2)]
+									if t!=useful['mypos']:	click(t,offy=-4,s=1)
 								break
 						buffs['1']['fc']=buffs['1']['recast']#force boost
 					elif useful['fight']['ap']>1 and not heal:
@@ -315,13 +323,13 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				for x in xx.values():
 					if x['fc']:
 						x['fc']-=1
-			wait(0,5)
 		except:
 			logging.error(f'Error in check_spells\nuseful : {useful}\nspells : {spells}\nbuffs : {buffs}\nmat : {mat}',exc_info=1)
 		finally:
 			return {x:spells[x] for x in ['1']+sample([*spells][1:],len(spells)-1)},buffs
 	def fight(treasure=False):
 		try:
+			# global connected
 			logging.info(f'Enter fight')
 			press('{VK_SHIFT}')
 			try:
@@ -375,15 +383,17 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			prev,pc=None,0
 			while useful['infight'] and connected:
 				press('{F1}')
+				wait(1,2)
 				counter=5
 				while not wait(1,2) and 'turn' in useful['fight'].keys() and not useful['fight']['turn'] and connected and useful['infight'] and (counter:=counter-1):
 					check_admin()
 					logging.info('Waiting for turn')
+				buf.reset()
 				if useful['fight']['round'] == prev:	
 					logging.info('same turn')
 					pc+=1
-					buf.reset()
-				if pc > 3 :	notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'fight error','utf8'))
+				if pc > 9 :	useful['infight']=False
+				elif pc > 3 :	notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'fight error','utf8'))
 				prev=useful['fight']['round']
 				spells,buffs=check_spells(spells,buffs,mat,treasure,hpc,lvl_cond)
 		except:
@@ -402,11 +412,14 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 		global connected
 		logging.info(f'move to : {nid} , zaap : {zaap} ,exit node : {exit}')
 		if zaap:
+			logging.info('checking closest zaap')
 			n,m=func(nid),1000
 			for x in collection.zaaps.find({}):
 				if (calc:=abs(int((c:=x['_id'].split(','))[0])-n['coord'][0])+abs(int(c[1])-n['coord'][1]))<m:
 					name,m=x['name'],calc
-			teleport(name,exit)
+			while teleport(name,exit):	
+				click(80,-21,-10,s=2)
+				# notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'Failed Teleporting','utf8'))
 			nid=n['_id']
 		for e in (p:=pathfinder((c:=get_current_node(1)),nid,shuffle=False)):
 			prev=useful['mapid']
@@ -531,8 +544,8 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				else:
 					logging.info('Trying random fix')
 					while useful['hunt']['availableRetryCount']:
-						#add testing to all nodes in given direction
-						last=move(l[0] if (l:=[*collection.nodes.find_one({'_id':last},{directions[useful['hunt']['currentstep']['direction']][0],'coord'})[directions[useful['hunt']['currentstep']['direction']][0]]]) else [*collection.nodes.find_one({'_id':last},{"d",'coord'})["d"]][0])
+						#todo add testing to all nodes in given direction
+						last=move(l[0] if (l:=[*collection.nodes.find_one({'_id':last},{directions[useful['hunt']['currentstep']['direction']][0],'coord'})[directions[useful['hunt']['currentstep']['direction']][0]]]) else [*(nwmd:=collection.nodes.find_one({'_id':last},{"d",'coord'})["d"])][randint(0,nwmd-1)]) #temp solution randint to avoid cycle in multi doors node
 						logging.info(f"Fix {last} {directions[useful['hunt']['currentstep']['direction']][0]}")
 						check_hint(j)
 						if j!=len(useful['hunt']['flags']):
@@ -703,7 +716,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 		try:
 			generate=lambda cells,length:(x for x in [cells[y if y < length else randint(0,length-1)] for y in range(5)])
 			if direction=='d':
-				return generate(edge,len(edge),)
+				return generate(edge,len(edge))
 			elif useful['mypos'] in edge:
 				return (y if (y:=useful['mypos'] + (x if x <3 else -x+2)*(28 if direction in ('w','e') else 1)) else useful['mypos'] for x in range(5))#check new pos in node edges
 			l,base,done,ret=[useful['mypos']],(28,-28,1,-1,13,14,-13,-14),set(),[]
@@ -738,28 +751,33 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			press('h')
 			wait_check_fight(4,5)
 			check_admin()
-			if not (count:=count-1) and useful['mapid']!=162793472:
-				logging.warning(f'Could Not Teleport To HavenBag From This Map {useful["mapid"]} exit node {exit}')
-				if exit:	move(exit,exit=wrapper(teleport,text))
-				return True
+			if not (count:=count-1):
+				logging.info('waiting 15s before reteleporting')
+				sleep(15)
+				if useful['mapid']!=162793472:
+					logging.warning(f'Could Not Teleport To HavenBag From This Map {useful["mapid"]} exit node {exit}')
+					if exit:	move(exit,exit=wrapper(teleport,text))
+					return True
 		logging.info(f'Enter Havenbag ,{useful["mapid"]}')
 		counter=-1
 		while not useful['dialog'] and connected:
 			click(173, -10, -10,s=2.5,so=3)
 			if (counter:=counter+1)>=5:
 				logging.warning(f'teleport counter surpassed {useful["mapid"]}')
-				notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'nested move error','utf8'))
+				notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'Dialog error','utf8'))
 				buf.reset()
-				return teleport(text,exit)
 				click(300,s=1)
+				return teleport(text,exit)
 		count=3
+		logging.info(f'dialog open : {useful["dialog"]}')
 		while useful['mapid']==162793472 and connected:
+			click(173, -10, -10,s=2.5,so=3)
 			click(134,offy=-10,c=3,s=1)
 			press(text,s=1)
 			click(175,offy=-5,c=2,s=5)
 			check_admin()
 			if not (count:=count-1):	return True
-		logging.info(f'Done teleporting to {text} current mapid is {useful["mapid"]}')
+		logging.info(f'Done teleporting to {text} current mapid is {useful["mapid"]} poss {useful["mypos"]}')
 
 	def check_adjc(l,mat,pos):
 		try:
@@ -866,6 +884,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				if cond[2]!=-1:
 					if tries >= cond[2]:
 						logging.info(f'Forced break after timeout , {useful["mapid"]}')
+						buf.reset()
 						# press('{VK_SHIFT}',s=.5)
 						# if useful['dialog']:	press('{VK_ESCAPE}',s=1)
 						click(554,offy=120,s=.5)
@@ -1004,10 +1023,10 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	def harvest(paths,rsc,priority,exceptions,safe_mode):
 		try:
 			logging.info(f'Harvest called with {paths,rsc,priority,exceptions,safe_mode}')
-			# while not useful['mapid']:	sleep(5)#remove on sub
+			while not useful['mapid']:	sleep(5)#remove on sub
 			while connected:
 				for p in sample(paths,len(paths)):
-					teleport(collection.zaaps.find_one({'_id':p['zaap']})['name'])
+					# teleport(collection.zaaps.find_one({'_id':p['zaap']})['name'])
 					p,path=[get_current_node(1)]+p['nodes'],[]
 					for s in range(len(p)-1):
 						path+=pathfinder(p[s],p[s+1])
@@ -1090,6 +1109,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			except IndexError:
 				buf.pos = 0
 				if useful['reset']:
+					logging.warning('reset buffer')
 					useful['reset']=False
 					buf.reset()
 					waitp=b''
@@ -1189,6 +1209,54 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 		except:
 			logging.error('Error in explore',exc_info=1)
 
+	def seller():
+		logging.info('Seller launched')
+		from copy import deepcopy
+		def checker(cell,arg):
+			while not useful['dialog']:	click(cell,s=5)
+			click(47,30,25,s=3)
+			for i in range(10):
+				prev=deepcopy(useful['inventory'])
+				for j in range(5):	click(108,j*62-6,i*78-13,s=.25,so=.75)
+				if useful['inventory'] == prev:	break
+			press('{VK_ESCAPE}',s=3)
+			print(f'  Done checking {arg} marketplace')	
+		print('Reloging to detect shortcuts')
+		click(554,offy=120,s=.5)
+		press('{VK_ESCAPE}',s=2)
+		click(244,offy=36,s=1)
+		press('{ENTER 3}')
+		send(b'r',s=35)
+		print('Opening chests')
+		while useful['shortcuts']:
+			for x in useful['shortcuts']:	press(str(x),s=.25,so=.75)
+		print('Done opening chests\nChecking marketplace prices')
+		move(73400321,True)
+		checker(261,'consumables')
+		move(get_current_node(1,73400322,17))
+		checker(389,'resource')
+		estimated_prices=[]
+		for x in useful['ready_to_sell']:
+			if x['type']=='r':
+				price=x['minimalPrices'][0]*.95 if x['quantity']<10 else x['minimalPrices'][1]*.97/10 if x['quantity']<100 else x['minimalPrices'][2]*.99/100
+				for y in (1000,100,10,1):
+					if (rate:=price/y)>=1:
+						rate=round(rate)*y
+						break
+				else:
+					rate=x['minimalPrices'][0]
+				estimated_prices.append(str(rate))
+		logging.info(estimated_prices)
+		#move to uncrowded map
+		print('Selling in merchant mode')
+		press('{VK_NUMPAD4}',s=5)
+		click(82,20,-7,s=1)
+		for x in estimated_prices:
+			click(108,-6,41,s=.5,so=1)
+			press('^a')
+			for y in str(x):	press(y,s=.5)
+			press('~')
+
 	def sniffer():
 		global connected
 		try:
@@ -1196,21 +1264,18 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 		except Exception as e:
 			logging.error(f'Error in sniffer : {e}')
 			connected=False
+
 	buf=Buffer()
 	thread=Thread(target=sniffer)
 	thread.start()
-	while 1:
-		sleep(2)
-		if useful['relog']:
-			send(b'r')
-			useful['relog']=False
 	for _ in range(3):	press('~',s=1)
 	press('{VK_NUMPAD6}',s=1,so=60)
 	if useful['mount'] and useful['mount']['riding']:	press('{VK_NUMPAD6}')
+	for x in ' /solo~':	press(x,s=.5)
 	if (cond:=parameters[0] =='1' and parameters[1]) or parameters[0]=='2':
 		g,param=lambda rsc:[s for r in rsc for x in collection.skills.find({'_id':{'$regex': '^%s.*'%(r),'$options':'i'}}) for s in x['skill_id']],[[y.replace(' ','') for y in x[x.find(':')+1:].split(',')]for x in parameters[1:]]
 		param_list=[list(collection.paths.find({'$or':[{'_id':{'$regex':f'.*{x}.*','$options':'i'}} for x in param[0]]},{'zaap':1,'nodes':1})),set(g(param[1])),g(param[2]),{x['_id']:[x['offx'],x['offy']] for x in collection.exceptions.find({},{'offx':1,'offy':1})},param[-1][0]=='1']
-	treasure_hunt(0,param_list if cond else False) if parameters[0]=='1' else harvest(*param_list) if parameters[0]=='2' else level_up(parameters[1]) if parameters[0]=='3' else explore() if parameters[0]=='4' else logging.error('Wrong algorithm option')
+	treasure_hunt(0,param_list if cond else False) if parameters[0]=='1' else harvest(*param_list) if parameters[0]=='2' else level_up(parameters[1]) if parameters[0]=='3' else explore() if parameters[0]=='4' else  seller() if parameters[0]=='5' else logging.error('Wrong algorithm option')
 	if thread:	
 		connected=False
 		thread.join()
