@@ -112,7 +112,7 @@ def addMapComplementaryInformationsDataMessage(ans):
 				if actor["contextualId"] == useful["contextualId"]:
 					useful["mypos"] = actor["disposition"]["cellId"]
 				else:
-					if "["  == actor["name"][0]:
+					if actor["name"] and "["  == actor["name"][0]:
 						useful["threat"]="high"
 						logging.critical("MODERATOR PRESENCE OF THIS MAP")
 					useful["map_players"][actor["contextualId"]] = {"name":actor["name"]}
@@ -526,7 +526,8 @@ def read(type, data: Data):
 		elif ans["__type__"]=="TreasureHuntFinishedMessage":
 			logging.info('hunt finished')
 			print(f'Hunt finished : {useful["server"]} - {useful["name"]} {strftime("%A, %d %B %Y %I:%M %p")}')
-			del useful["hunt"]
+			if "hunt" in useful:
+				del useful["hunt"]
 
 		elif ans["__type__"] == "GameFightShowFighterMessage":
 			id = int(ans["informations"]["contextualId"])

@@ -7,11 +7,12 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	from math import ceil,floor
 	from time import sleep
 	from threading import Thread
+	from discord.ext import commands
 	global collection,wait,func,waitp,buf,connected,archmonsters
 	#'mongodb+srv://carbon:bot@carbon-9bthr.gcp.mongodb.net/test?retryWrites=true&w=majority').carbon_db
-	collection,wait,useful['name'],useful['server'],connected=MongoClient('localhost:27017').admin, lambda x,y:sleep(uniform(x,y)),name,server,True
+	collection,wait,useful['name'],useful['server'],useful['mod'],connected=MongoClient('localhost:27017').admin, lambda x,y:sleep(uniform(x,y)),name,server,False,True
 	func,waitp,archmonsters=lambda x:collection.nodes.find_one({'mapid':x}, {'coord'}),b'',{x['raceid']:x['_id'] for x in collection.archmonsters.find({})}
-	logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'logs/log-{name} - {server}.txt', level=logging.DEBUG)
+	logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'logs/log-{name} - {server}.txt', level=logging.INFO)
 	logging.raiseExceptions = False
 	try:
 		conn.sendto(collection.servers.find_one({'_id':server})['ip'].encode(),client)
@@ -56,7 +57,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 
 	def check_admin():
 		global connected,waitp
-		logging.info(f'admin check {useful["threat"]}')
+		logging.info(f'admin check {useful["threat"]} {useful["mod"]}')
 		if useful['reset']:
 			logging.warning('reset buffer')
 			useful['reset']=False
@@ -72,6 +73,16 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 					# if useful['dialog'] == 2:	useful['dialog']=False
 			sleep(5)
 			useful['threat']=None
+		while useful['mod']:
+			logging.warning('waiting for 15 minutes')	
+			useful['mod']=False
+			for _ in range(180):
+				sleep(5)
+				click(554,offy=120)
+				press('~')
+				if useful['threat']:
+					check_admin()
+					break
 
 	def shortest(heap,target,c=True):
 		m,ret,i,index,decal=10000,[],0,[],0
@@ -360,17 +371,17 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 							{'1': {'range': (1, 5, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
 							 '2': {'range': (1, 3, False),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}}
 							 if useful['fight']['ap']<10 else
-							 	{'1': {'range': (1, 5, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
-						 		'2': {'range': (1, 4, False),'ap':5, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
+								{'1': {'range': (1, 5, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
+								'2': {'range': (1, 4, False),'ap':5, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
 								'3': {'range': (1, 3, False),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}}
-							 	if useful['my_level']<135 else
-						 		{'1': {'range': (1, 5, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
-						 		'2': {'range': (1, 4, False),'ap':5, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
+								if useful['my_level']<135 else
+								{'1': {'range': (1, 5, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
+								'2': {'range': (1, 4, False),'ap':5, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
 								'3': {'range': (1, 3, False),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
 								'4': {'range': (1, 6, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': False, 'inline': False}}
 								if useful['my_level']<175 else
 								{'1': {'range': (1, 5, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
-						 		'2': {'range': (1, 4, False),'ap':5, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
+								'2': {'range': (1, 4, False),'ap':5, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
 								'3': {'range': (1, 3, False),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
 								'4': {'range': (1, 1, False),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
 								'5': {'range': (1, 6, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': False, 'inline': False}}	 		
@@ -545,7 +556,11 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 					logging.info('Trying random fix')
 					while useful['hunt']['availableRetryCount']:
 						#todo add testing to all nodes in given direction
-						last=move(l[0] if (l:=[*collection.nodes.find_one({'_id':last},{directions[useful['hunt']['currentstep']['direction']][0],'coord'})[directions[useful['hunt']['currentstep']['direction']][0]]]) else [*(nwmd:=collection.nodes.find_one({'_id':last},{"d",'coord'})["d"])][randint(0,nwmd-1)]) #temp solution randint to avoid cycle in multi doors node
+						last=move(l[0] if (l:=[*collection.nodes.find_one({'_id':last},{directions[useful['hunt']['currentstep']['direction']][0],'coord'})[directions[useful['hunt']['currentstep']['direction']][0]]]) else [*nwmd][randint(0,len(nwmd)-1)]) if (nwmd:=collection.nodes.find_one({'_id':last},{"d",'coord'})["d"]) else -1#temp solution randint to avoid cycle in multi doors node
+						if last == -1 :
+							useful["retake"]=True
+							del useful["hunt"]
+							break
 						logging.info(f"Fix {last} {directions[useful['hunt']['currentstep']['direction']][0]}")
 						check_hint(j)
 						if j!=len(useful['hunt']['flags']):
@@ -570,7 +585,8 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				logging.error('Failed fixing missing clue probably hunt failed',exc_info=True)
 		def f(coord,last,d,nested=False):
 			logging.info(f"f called with {coord} {last} {d}")
-			cur,ret=collection.nodes.find_one({'_id':last},t:={d,'d','coord','mapid','walkable'}),[]
+			cur,ret,cont=collection.nodes.find_one({'_id':last},t:={d,'d','coord','mapid','walkable'}),[],0
+			if cur['coord']==coord:	return [*cur[d]][randint(0,len(cur[d])-1)]
 			def g(snode,nnode):
 				if d =='n':	return snode['coord'][1]-nnode['coord'][1]
 				if d =='s':	return nnode['coord'][1]-snode['coord'][1]
@@ -679,6 +695,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 								logging.info(f'sneaky error abandon hunt {useful["hunt"]}',exc_info=1)
 								useful['retake']=True
 								del useful['hunt']
+								buf.reset()
 								assert 0
 						logging.info(f'move to {next_node} and flag it')
 						if (length:=len(next_node)==1) and next_node[0]==last:
@@ -1161,6 +1178,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 		@staticmethod
 		def from_json(json, count=None, random_hash=True):
 			try:
+				if not json or "__type__" not in json:	return
 				type_name: str = json["__type__"]
 				type_id: int = types[type_name]["protocolId"]
 				data = write(type_name, json, random_hash=random_hash)
@@ -1231,31 +1249,31 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 		while useful['shortcuts']:
 			for x in useful['shortcuts']:	press(str(x),s=.25,so=.75)
 		print('Done opening chests\nChecking marketplace prices')
-		move(73400321,True)
-		checker(261,'consumables')
-		move(get_current_node(1,73400322,17))
-		checker(389,'resource')
-		estimated_prices=[]
-		for x in useful['ready_to_sell']:
-			if x['type']=='r':
-				price=x['minimalPrices'][0]*.95 if x['quantity']<10 else x['minimalPrices'][1]*.97/10 if x['quantity']<100 else x['minimalPrices'][2]*.99/100
-				for y in (1000,100,10,1):
-					if (rate:=price/y)>=1:
-						rate=round(rate)*y
-						break
-				else:
-					rate=x['minimalPrices'][0]
-				estimated_prices.append(str(rate))
-		logging.info(estimated_prices)
-		#move to uncrowded map
-		print('Selling in merchant mode')
-		press('{VK_NUMPAD4}',s=5)
-		click(82,20,-7,s=1)
-		for x in estimated_prices:
-			click(108,-6,41,s=.5,so=1)
-			press('^a')
-			for y in str(x):	press(y,s=.5)
-			press('~')
+		# move(73400321,True)
+		# checker(261,'consumables')
+		# move(get_current_node(1,73400322,17))
+		# checker(389,'resource')
+		# estimated_prices=[]
+		# for x in useful['ready_to_sell']:
+		# 	if x['type']=='r':
+		# 		price=x['minimalPrices'][0]*.95 if x['quantity']<10 else x['minimalPrices'][1]*.97/10 if x['quantity']<100 else x['minimalPrices'][2]*.99/100
+		# 		for y in (1000,100,10,1):
+		# 			if (rate:=price/y)>=1:
+		# 				rate=round(rate)*y
+		# 				break
+		# 		else:
+		# 			rate=x['minimalPrices'][0]
+		# 		estimated_prices.append(str(rate))
+		# logging.info(estimated_prices)
+		# #move to uncrowded map
+		# print('Selling in merchant mode')
+		# press('{VK_NUMPAD4}',s=5)
+		# click(82,20,-7,s=1)
+		# for x in estimated_prices:
+		# 	click(108,-6,41,s=.5,so=1)
+		# 	press('{BACKSPACE}')
+		# 	for y in str(x):	press(y,s=.5)
+		# 	press('~')
 
 	def sniffer():
 		global connected
@@ -1264,8 +1282,18 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 		except Exception as e:
 			logging.error(f'Error in sniffer : {e}')
 			connected=False
-
 	buf=Buffer()
+	bot = commands.Bot(command_prefix='>', description="MOD BOT")
+	@bot.listen()
+	async def on_message(message):
+		if "un modérateur est présent sur le serveur: " in message.content.lower():
+			useful['mod'] = str(message.content.lower().split(': ')[1])==useful['server']
+			if useful['mod']:
+				print('Moderator on',useful['server'])
+				logging.info(f"Moderator on {useful['server']}")
+	def mod_bot():	bot.run('Nzc5MDc1NjU1NTY4NTg4ODQy.X7bQvg.bk9UBPfD0fzFlbKkrVdJGvovTJQ')
+	thread0=Thread(target=mod_bot)
+	thread0.start()
 	thread=Thread(target=sniffer)
 	thread.start()
 	for _ in range(3):	press('~',s=1)
@@ -1279,5 +1307,8 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 	if thread:	
 		connected=False
 		thread.join()
+		# if thread0:	
+			# bot.logout()
+			# thread0._Thread_stop()
 	conn.close()
 	logging.info('\n\n\nProcess Terminated\n\n\n')
