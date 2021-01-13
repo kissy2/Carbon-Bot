@@ -352,6 +352,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				logging.info(f'infight mount {useful["mount"]}')
 				if useful['mount'] and not useful['mount']['riding']:	
 					press('{VK_NUMPAD6}')
+				click(556,offx=-18,offy=67,c=7,s=.3)
 			except:
 				logging.error('lock spec mount error',exc_info=1)
 			mat,prev,mapid,hpc=get_current_node(),useful['mypos'],useful['mapid'],useful['fight']['enemyteamMembers'][-1]['lifepoints']*.12
@@ -397,7 +398,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				wait(1,2)
 				counter=5
 				while not wait(1,2) and 'turn' in useful['fight'].keys() and not useful['fight']['turn'] and connected and useful['infight'] and (counter:=counter-1):
-					check_admin()
+					# check_admin()
 					logging.info('Waiting for turn')
 				buf.reset()
 				if useful['fight']['round'] == prev:	
@@ -446,10 +447,29 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			if cond_wait(2,2.5,['mapid',prev,4,wrapper(click,cell,direction=e[1]),e[2],e[3]])==-1:
 				logging.info('Recall move from nested func move')
 				if nested:
+					while not useful['energy']:
+						logging.info('Player became a ghost trying to revive')
+						click(554,offy=120,s=.5)
+						press('{VK_ESCAPE}{ENTER 3}',s=2)
+						while not useful['phenix']:
+							click(554,offy=120,s=.5)
+							press(' /release~',s=5)
+						click(collection.nodes.find_one({'_id':move(collection.nodes.find_one({'mapid':useful['phenix']},{'_id'})['_id'])},{'o'})['o'][useful['phenix_id']])
+						useful["retake"]=True
+						del useful["hunt"]
+						click(554,offy=120,s=.5)
+						press(' /sit~')
+						wait(420,500)
+						assert 0
 					# logging.critical('closing connection client sniffer error')
 					# connected=False
 					print('nested move error '+useful['name']+' - '+useful['server'])
 					notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'nested move error','utf8'))
+					buf.reset()
+					press('h',s=10)
+					buf.reset()
+					if useful['dialog'] :
+						click(80)
 					assert 0
 				return move(nid,nested=True)
 			if hasattr(exit,'__call__') and not exit():	
@@ -556,11 +576,12 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 					logging.info('Trying random fix')
 					while useful['hunt']['availableRetryCount']:
 						#todo add testing to all nodes in given direction
-						last=move(l[0] if (l:=[*collection.nodes.find_one({'_id':last},{directions[useful['hunt']['currentstep']['direction']][0],'coord'})[directions[useful['hunt']['currentstep']['direction']][0]]]) else [*nwmd][randint(0,len(nwmd)-1)]) if (nwmd:=collection.nodes.find_one({'_id':last},{"d",'coord'})["d"]) else -1#temp solution randint to avoid cycle in multi doors node
+						last=l[0] if (l:=[*collection.nodes.find_one({'_id':last},{directions[useful['hunt']['currentstep']['direction']][0],'coord'})[directions[useful['hunt']['currentstep']['direction']][0]]]) else [*nwmd][randint(0,len(nwmd)-1)] if (nwmd:=collection.nodes.find_one({'_id':last},{"d",'coord'})["d"]) else -1#temp solution randint to avoid cycle in multi doors node
 						if last == -1 :
 							useful["retake"]=True
 							del useful["hunt"]
 							break
+						else:	move(last)
 						logging.info(f"Fix {last} {directions[useful['hunt']['currentstep']['direction']][0]}")
 						check_hint(j)
 						if j!=len(useful['hunt']['flags']):
@@ -773,6 +794,8 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				sleep(15)
 				if useful['mapid']!=162793472:
 					logging.warning(f'Could Not Teleport To HavenBag From This Map {useful["mapid"]} exit node {exit}')
+					# notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'Teleport Error','utf8'))
+					buf.reset()
 					if exit:	move(exit,exit=wrapper(teleport,text))
 					return True
 		logging.info(f'Enter Havenbag ,{useful["mapid"]}')
@@ -783,17 +806,27 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				logging.warning(f'teleport counter surpassed {useful["mapid"]}')
 				notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'Dialog error','utf8'))
 				buf.reset()
-				click(300,s=1)
+				press('h',s=10)
+				buf.reset()
+				if useful['mapid']==162793472:	click(300,s=1)
 				return teleport(text,exit)
 		count=3
 		logging.info(f'dialog open : {useful["dialog"]}')
 		while useful['mapid']==162793472 and connected:
-			click(173, -10, -10,s=2.5,so=3)
-			click(134,offy=-10,c=3,s=1)
-			press(text,s=1)
+			# click(173, -10, -10,s=2.5,so=3)
+			click(135,offy=-10,c=3,s=1)
+			for x in text:	press(x,s=.5)
+			wait(5,7)
 			click(175,offy=-5,c=2,s=5)
 			check_admin()
-			if not (count:=count-1):	return True
+			if not (count:=count-1):	
+				notify(bytes(useful['name']+' - '+useful['server']+' : Stack\n'+'Out of havenbag error','utf8'))
+				buf.reset()
+				press('h',s=10)
+				buf.reset()
+				return useful['mapid']==162793472
+		if useful['dialog'] :
+			click(80)
 		logging.info(f'Done teleporting to {text} current mapid is {useful["mapid"]} poss {useful["mypos"]}')
 
 	def check_adjc(l,mat,pos):
@@ -1119,7 +1152,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 				# logging.info(f'from raw packet {id} {lenData} {len(buf)}')
 				if lenData > len(buf) - total:
 					raise IndexError
-				if id in (6675,6658,6668):
+				if id in (6660,6677,6668,1168):
 					buf.read(lenData)
 					return
 				data = Data(buf.read(lenData))
@@ -1290,7 +1323,7 @@ def launch_in_process(conn,client,name,server,parameters,fix_list,lock):
 			useful['mod'] = str(message.content.lower().split(': ')[1])==useful['server']
 			if useful['mod']:
 				print('Moderator on',useful['server'])
-				logging.info(f"Moderator on {useful['server']}")
+				logging.info(f"Moderator on {useful['server']} {useful['mod']}")
 	def mod_bot():	bot.run('Nzc5MDc1NjU1NTY4NTg4ODQy.X7bQvg.bk9UBPfD0fzFlbKkrVdJGvovTJQ')
 	thread0=Thread(target=mod_bot)
 	thread0.start()

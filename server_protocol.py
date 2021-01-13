@@ -35,6 +35,7 @@ useful = {
 		  'dialog': False,
 		  "map_mobs": {},
 		  "map_npc": {},
+		  "energy" : 1,
 		  "map_merchant": {},
 		  "inventory_weight": 0,
 		  "inventory_max": 1,
@@ -428,11 +429,9 @@ def read(type, data: Data):
 			addGameMapMovementMessage(ans)
 
 		elif ans["__type__"] == "StatedElementUpdatedMessage":
-			id = 5709
 			addStatedElementUpdatedMessage(ans)
 
 		elif ans["__type__"] == "InteractiveElementUpdatedMessage":
-			id = 5708
 			addInteractiveElementUpdatedMessage(ans)
 
 		elif ans["__type__"] == "CharacterSelectedSuccessMessage":
@@ -444,15 +443,17 @@ def read(type, data: Data):
 			useful["my_level"] += 1
 
 		elif ans["__type__"] == "CharacterStatsListMessage":
-			id = 500
-			useful["kamas"] = ans["stats"]["kamas"]
-			useful['fight']["range"] = 0
-			for x in [*ans['stats']['range'].values()][1:]:
-				useful['fight']['range']+=x
-			useful["lifepoints"] = ans["stats"]["lifePoints"]
-			useful["fight"]["lifepoints"] = ans["stats"]["lifePoints"]
-			useful["fight"]["ap"] = int(ans["stats"]["actionPointsCurrent"])
-			useful["fight"]["mp"] = int(ans["stats"]["movementPointsCurrent"])
+			if ans["stats"]:
+				useful["kamas"] = ans["stats"]["kamas"]
+				if "energyPoints" in ans["stats"]:
+					useful["energy"] = ans["stats"]["energyPoints"]
+				useful['fight']["range"] = 0
+				for x in [*ans['stats']['range'].values()][1:]:
+					useful['fight']['range']+=x
+				useful["lifepoints"] = ans["stats"]["lifePoints"]
+				useful["fight"]["lifepoints"] = ans["stats"]["lifePoints"]
+				useful["fight"]["ap"] = int(ans["stats"]["actionPointsCurrent"])
+				useful["fight"]["mp"] = int(ans["stats"]["movementPointsCurrent"])
 
 		elif ans["__type__"] == 'FighterStatsListMessage':
 			useful['fight']["range"],prev = 0,None
