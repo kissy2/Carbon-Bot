@@ -13,7 +13,6 @@ with (Path(__file__).parent / "protocol.pk").open("rb") as f:
 	msg_from_id = pickle.load(f)
 	types_from_id = pickle.load(f)
 	primitives = pickle.load(f)
-
 primitives = {
 	name: (getattr(Data, "read" + name), getattr(Data, "write" + name))
 	for name in primitives
@@ -41,13 +40,12 @@ useful = {
 		  "inventory_max": 1,
 		  "infight": False,
 		  "map_players": {},
-		  "mypos": 0,
+		  "mypos": None,
 		  "mapid": None,
 		  "subAreaId": None,
 		  "fightCount": None,
 		  "full_inventory": False,
 		  "backup":False,
-		  "in_haven_bag": False,
 		  'threat':None,
 		  'name':None,
 		  'reset':False,
@@ -56,7 +54,12 @@ useful = {
 		  'relog':False,
 		  'shortcuts':[],
 		  'inventory':{},
-		  'ready_to_sell':[]
+		  'ready_to_sell':[],
+		  'agro':[],
+		  'disconnect':3,
+		  'zaap':False,
+		  'marketplace':False,
+		  'w_l_f':True
 		  }
 
 def readVec(var, data):
@@ -142,11 +145,13 @@ def addMapComplementaryInformationsDataMessage(ans):
 				tmp[elmentid]["elementState"] = elemnt2["elementState"]
 
 		useful["client_render_time"]=len(tmp)
+		useful['zaap']=False
+		useful['marketplace']=False
 		for element in ans["interactiveElements"]:
-			if element["enabledSkills"]:
+			if element["enabledSkills"]:	
 				try:
 					elmentid = element["elementId"]
-					if tmp[elmentid]["elementCellId"] \
+					if elmentid in tmp and tmp[elmentid]["elementCellId"] \
 							and element["onCurrentMap"] \
 							and element["enabledSkills"][0]["skillId"] != 114:
 						useful["resources"][elmentid] = {}
@@ -154,16 +159,15 @@ def addMapComplementaryInformationsDataMessage(ans):
 						useful["resources"][elmentid]["enabledSkill"] = element["enabledSkills"][0]["skillId"]
 						useful["resources"][elmentid]["elementTypeId"] = element["elementTypeId"]
 						useful["resources"][elmentid]["elementState"] = tmp[elmentid]["elementState"]
-						for map in mapinfo:
-							if map["id"] == ans["mapId"]:
-								useful["resources"][elmentid]["offset"] = map['interactives']['2'][str(elmentid)]["offset"]
+						for imap in mapinfo:
+							if imap["id"] == ans["mapId"]:
+								useful["resources"][elmentid]["offset"] = imap['interactives']['2'][str(elmentid)]["offset"]
+					elif element["enabledSkills"][0]["skillId"] == 114 and element["onCurrentMap"]:	useful['zaap']=True
+					elif element["enabledSkills"][0]["skillId"] == 355 and element["onCurrentMap"]: useful['marketplace']=str(elmentid)
+					elif element["enabledSkills"][0]["skillId"]==211:	useful['phenix_id']=str(elmentid)
 				except:
-
-					try:
-						if element["enabledSkills"] and element["enabledSkills"][0]["skillId"]==211:
-							useful['phenix_id']=str(elmentid)
-					except :
-						pass
+					pass
+			
 	except:
 		logging.error(f'proto error {ans}',exc_info=1)
 def addGameMapMovementMessage(ans):
@@ -211,7 +215,10 @@ def addGameFightMonsterInformations(ans):
 		if id not in useful["fight"]["mysummons"]:
 			useful["fight"]["enemyteamMembers"][id] = {}
 			useful["fight"]["enemyteamMembers"][id]["cellid"] = ans["disposition"]["cellId"]
-			useful["fight"]["enemyteamMembers"][id]["lifepoints"] = ans["stats"]["lifePoints"]
+			for x in ans["stats"]["characteristics"]["characteristics"]:
+				if x["characteristicId"]==0:
+					useful["fight"]["enemyteamMembers"][id]["lifepoints"]=x["total"]
+			# useful["fight"]["enemyteamMembers"][id]["lifepoints"] = ans["stats"]["lifePoints"]
 			useful["fight"]["enemyteamMembers"][id]["summoned"] = ans["stats"]["summoned"]
 			try:
 				useful["fight"]["enemyteamMembers"][id]["level"] = ans["creatureLevel"]
@@ -219,15 +226,21 @@ def addGameFightMonsterInformations(ans):
 				pass
 
 def addGameFightCharacterInformations(ans):
+	if not useful["contextualId"] and useful['name']==ans['name']:	useful['contextualId']=ans['contextualId']
 	id = int(ans["contextualId"])
 	if id == useful["contextualId"]:
 		useful["mypos"] = ans["disposition"]["cellId"]
 		useful["fight"]["mypos"] = useful["mypos"]
 		useful["fight"]["my_teamid"] = ans["spawnInfo"]["teamId"]
 		useful["my_level"] = ans["level"]
-		useful["fight"]["ap"] = ans["stats"]["actionPoints"]
-		useful["fight"]["mp"] = ans["stats"]["movementPoints"]
-		useful["lifepoints"] = ans["stats"]["lifePoints"]
+		useful["maxLifePoints"]=0
+		for x in ans["stats"]["characteristics"]["characteristics"]:
+			if x["characteristicId"]==1:
+				useful["fight"]["ap"]=x["base"]+x["objectsAndMountBonus"]
+			elif x["characteristicId"]==23:
+				useful["fight"]["mp"]=x["base"]+x["objectsAndMountBonus"]
+			elif x["characteristicId"]==0 or x["characteristicId"]==11:
+				useful["maxLifePoints"]+=x["base"]+x["objectsAndMountBonus"]
 
 	else:
 		useful["fight"]["teamMembers"][id]["status"] = ans["status"]["__type__"]
@@ -296,12 +309,13 @@ def read(type, data: Data):
 
 			if type["hash_function"] and data.remaining() == 48:
 				ans["hash_function"] = data.read(48)
-			flag = True
 		except:
 			useful['reset']=True
 			return {}
 
-		# logging.info(f'{ans}')
+		# logging.info(f' {ans}')
+
+
 
 		if ans["__type__"] == "GameFightOptionStateUpdateMessage":
 			if useful["infight"] == ans["fightId"]:
@@ -310,63 +324,75 @@ def read(type, data: Data):
 				elif ans['option'] == 2:
 					useful['fight']['lock']=ans['state']
 
-		# elif ans["__type__"] == "ShortcutBarContentMessage":
-		# 	if ans['barType'] == 0:
-		# 		useful['shortcuts'] = [(x['slot']+1)%10 for x in ans['shortcuts'] if x['slot']<10 and x['itemUID']]
-		# 	elif ans['barType'] == 1:
-		# 		useful['spells'] = {x['spellId']:x['slot'] for x in ans['shortcuts']}
+		elif ans["__type__"] == "ShortcutBarContentMessage":
+			if ans['barType'] == 0:
+				useful['shortcuts'] = [(x['slot']+1)%10 for x in ans['shortcuts'] if x['slot']<10 and x['itemUID']]
+			# elif ans['barType'] == 1:
+			# 	useful['spells'] = {x['spellId']:x['slot'] for x in ans['shortcuts']}
 
-		# elif ans["__type__"] == "ShortcutBarRefreshMessage":
-		# 	if ans['barType'] == 0 and ans['shortcut']['slot']<10:
-		# 		calc=(ans['shortcut']['slot']+1)%10
-		# 		if ans['shortcut']['itemUID'] and calc not in useful['shortcuts']:
-		# 			useful['shortcuts'].append(calc)
-		# 		elif calc in useful['shortcuts']:
-		# 			useful['shortcuts'].remove(calc)
-		# 		else:
-		# 			print('weird shortcut',calc,useful['shortcuts'],ans)
+		elif ans["__type__"] == "ShortcutBarRefreshMessage":
+			if ans['barType'] == 0 and ans['shortcut']['slot']<10:
+				calc=(ans['shortcut']['slot']+1)%10
+				if ans['shortcut']['itemUID'] and calc not in useful['shortcuts']:
+					useful['shortcuts'].append(calc)
+				elif calc in useful['shortcuts']:
+					useful['shortcuts'].remove(calc)
+				else:
+					print('weird shortcut',calc,useful['shortcuts'],ans)
 
-		# elif ans["__type__"] == "InventoryContentMessage":
-		# 	for x in ans['objects']:
-		# 		if x['position'] == 63 and len(x['effects'])<10:
-		# 			useful['inventory'][x['objectGID']]={'objectUID':x['objectUID'],'quantity':x['quantity']}
+		elif ans["__type__"] == "InventoryContentMessage":
+			for x in ans['objects']:
+				if x['position'] == 63 and len(x['effects'])<10:
+					useful['inventory'][x['objectGID']]={'objectUID':x['objectUID'],'quantity':x['quantity']}
 
-		# elif ans["__type__"] == "ObjectQuantityMessage":
-		# 	for x in useful['inventory'].values():
-		# 		if x['objectUID'] == ans['objectUID']:
-		# 			x['quantity']=ans['quantity']
-		# 			break
+		elif ans["__type__"] == "ObjectQuantityMessage":
+			for x in useful['inventory'].values():
+				if x['objectUID'] == ans['objectUID']:
+					x['quantity']=ans['quantity']
+					break
 
-		# elif ans["__type__"] == "ObjectAddedMessage":
-		# 	useful['inventory'][ans['object']['objectGID']] = {'objectUID':ans['object']['objectUID'],'quantity':ans['object']['quantity']}
+		elif ans["__type__"] == "ObjectAddedMessage":
+			useful['inventory'][ans['object']['objectGID']] = {'objectUID':ans['object']['objectUID'],'quantity':ans['object']['quantity']}
 
-		# elif ans["__type__"] == "ExchangeBidPriceForSellerMessage":	
-		# 	if ans['genericId'] in useful['inventory']:
-		# 		useful['inventory'][ans['genericId']]['averagePrice'] = ans['averagePrice']
-		# 		useful['inventory'][ans['genericId']]['minimalPrices'] = ans['minimalPrices']
-		# 		useful['inventory'][ans['genericId']]['type'] = 'r' if useful['mapid']==73400322 else 'c'
-		# 		useful['ready_to_sell'].append({'genericId':ans['genericId'],'minimalPrices':ans['minimalPrices'],'averagePrice':ans['averagePrice'],'quantity':useful['inventory'][ans['genericId']]['quantity'],'type':'r' if useful['mapid']==73400322 else 'c'})
+		elif ans["__type__"] == "ExchangeBidPriceForSellerMessage":	
+			if ans['genericId'] in useful['inventory']:
+				useful['inventory'][ans['genericId']]['averagePrice'] = ans['averagePrice']
+				useful['inventory'][ans['genericId']]['minimalPrices'] = ans['minimalPrices']
+				useful['inventory'][ans['genericId']]['type'] = 'r' if useful['mapid']==73400322 else 'c'
+				useful['ready_to_sell'].append({'genericId':ans['genericId'],'minimalPrices':ans['minimalPrices'],'averagePrice':ans['averagePrice'],'quantity':useful['inventory'][ans['genericId']]['quantity'],'type':'r' if useful['mapid']==73400322 else 'c'})
 
-		# elif ans["__type__"] == "ReloginTokenStatusMessage":
-		# 	useful['relog']=True
+		elif ans["__type__"] == "ReloginTokenStatusMessage":
+			useful['relog']=True
 
-		# elif ans["__type__"] == "InteractiveUsedMessage" and ans['entityId']== useful['contextualId']:
-		# 	# print('!!! Market Place Dialog Opened !!!',ans)
-		# 	useful['dialog']=True
+		elif ans["__type__"] == "ExchangeStartedBidBuyerMessage":
+			useful['dialog']=True
 
 		elif ans["__type__"] == "MountClientData":
 			useful['mount']['lvl'] = ans['level']
 			useful['mount']['energy'] = ans['energy']
+			for x in ans['effectList']:
+				if x['actionId']==125:
+					useful['mount']['bonus']=x['value']
+					break
 
 		elif ans["__type__"] == "MountRidingMessage":
 			useful['mount']['riding'] = ans['isRiding']
+			if ans['isRiding']:
+				useful['lifepoints']+=useful['mount']['bonus']
 
 		elif ans["__type__"] == "GameFightNewRoundMessage":
-			useful["fight"]["round"] = ans["roundNumber"]
+			if useful['infight']:
+				useful["fight"]["round"] = ans["roundNumber"]
 
 		elif ans["__type__"] == "GameActionFightLifePointsLostMessage":
-			if useful['contextualId']==ans['targetId']:	useful['lifepoints']-=ans['loss']
-			elif ans['targetId'] in useful['fight']['enemyteamMembers']: useful['fight']['enemyteamMembers'][ans['targetId']]['lifepoints']-=ans['loss']
+			if useful['infight']:
+				if useful['contextualId']==ans['targetId']:
+					useful['lifepoints']-=ans['loss']
+					useful['maxLifePoints']-=ans['permanentDamages']
+					if not ans['loss'] and ans['permanentDamages']:
+						useful['lifepoints']-=ans['permanentDamages']
+					# logging.info(f"{useful['lifepoints'],useful['maxLifePoints'],ans}")
+				elif ans['targetId'] in useful['fight']['enemyteamMembers']: useful['fight']['enemyteamMembers'][ans['targetId']]['lifepoints']-=ans['loss']
 
 		elif ans["__type__"] in ("NpcDialogCreationMessage","LockableShowCodeDialogMessage","ZaapDestinationsMessage"):
 			useful["dialog"]=True
@@ -374,28 +400,47 @@ def read(type, data: Data):
 		elif ans["__type__"] == "LeaveDialogMessage" :
 			useful['dialog'],useful['Harvesting'] = False,False
 
+		elif ans["__type__"]== "GameRolePlayMonsterAngryAtPlayerMessage" and useful['contextualId']==ans['playerId']:
+			if ans['monsterGroupId'] not in useful['agro']:
+				useful['agro'].append(ans['monsterGroupId'])
+			# print('add',ans,useful['agro'])
+		elif ans["__type__"]=="GameRolePlayMonsterNotAngryAtPlayerMessage" and useful['contextualId']==ans['playerId']:
+			if ans['monsterGroupId'] in useful['agro']:
+				useful['agro'].remove(ans['monsterGroupId'])
+			# print('remove',ans,useful['agro'])
 
 		elif ans["__type__"] == "GameRolePlayHumanoidInformations":
 			try:
 				if "["  == ans["name"][0]:
 					useful["threat"]="medium"
 					logging.critical(f"MODERATOR PRESENCE OF THIS MAP {ans}")
-				useful["map_players"][ans["contextualId"]]={"name":ans["name"],"cellid":ans["disposition"]["cellId"]}
+				if useful['contextualId']!= ans['contextualId']:
+					useful["map_players"][ans["contextualId"]]={"name":ans["name"],"cellid":ans["disposition"]["cellId"]}
+				else:
+					useful["mypos"] = ans["disposition"]["cellId"]
 			except:
-				logging.error(f'{ans}')
+				logging.error(f'ok bb {ans}')
+
+		elif ans["__type__"] == "GameContextActorPositionInformations" or ans["__type__"]=="GameContextActorInformations" or ans["__type__"]=="GameRolePlayNamedActorInformations":
+			if not useful['contextualId'] and  ans["__type__"]=="GameRolePlayNamedActorInformations" and useful["name"]== ans["name"]:
+				useful["contextualId"]=ans["contextualId"]
+			if useful['contextualId']== ans['contextualId']:
+				useful["mypos"] = ans["disposition"]["cellId"]
+
 		elif ans["__type__"] == "ChatServerMessage":
 			if '[' == ans["senderName"][0]:
-				useful['threat']='high'
-				logging.critical(f"MODERATOR MESSAGE RECEIVED {ans['senderName']}")
+				useful['threat']='medium'
+				logging.critical(f"MODERATOR MESSAGE RECEIVED {ans['senderName']}\n{ans}")
 			if ans['channel'] == 8:
 				useful['threat']='high'
 				logging.critical(f'MODERATOR MESSAGE : {ans}\nmap : {useful["mapid"]}')
 			elif ans['channel'] == 9:
 				useful['threat']='medium'
+				logging.warning(f'Sender : {ans["senderName"]}\nContent : {str(ans["content"])}\nChannel : {ans["channel"]}')
 			# elif ans['channel'] == 0:
 				# if 'bot' in (s:=str(ans["content"])):
 					# useful['threat']='low'
-			logging.warning(f'Sender : {ans["senderName"]}\nContent : {str(ans["content"])}\nChannel : {ans["channel"]}')
+			# logging.warning(f'Sender : {ans["senderName"]}\nContent : {str(ans["content"])}\nChannel : {ans["channel"]}')
 
 
 		elif ans["__type__"] == "PopupWarningMessage":
@@ -404,12 +449,16 @@ def read(type, data: Data):
 
 
 		elif ans["__type__"] in ("ChatAdminServerMessage","AdminCommandMessage"):
-			logging.warning(f'ADMIN MESSAGE : {ans}map : {useful["mapid"]}')
-			useful['threat']='high'
+			logging.warning(f'ADMIN SERVER MESSAGE : {ans}map : {useful["mapid"]}')
+			# useful['threat']='high'
+			useful['mod']=True
+
+		elif ans["__type__"] == "ExchangeStartOkHumanVendorMessage":
+			useful['dialog']=True
 
 		elif ans["__type__"] in ("ExchangeRequestedMessage","ExchangeShopStockStartedMessage","GameRolePlayPlayerFightRequestMessage","ExchangeRequestedTradeMessage","PartyInvitationMessage","GuildInvitedMessage","InviteInHavenBagOfferMessage","ExchangeReplyTaxVendorMessage"):
 			useful["dialog"],useful['threat']=True if ans["__type__"] not in ("ExchangeReplyTaxVendorMessage","PartyInvitationMessage") else 2,'low'
-			logging.warning(f'Annoying Players : {ans["__type__"]}\nmap : {useful["mapid"]}')
+			logging.warning(f'dialog : {ans["__type__"]}\nmap : {useful["mapid"]}')
 
 		elif ans["__type__"] == "InventoryWeightMessage":
 			id = 3009
@@ -417,12 +466,6 @@ def read(type, data: Data):
 
 		elif ans['__type__'] in ['MapComplementaryInformationsDataMessage',
 								 'MapComplementaryInformationsDataInHavenBagMessage']:
-			if ans['__type__'] == 'MapComplementaryInformationsDataInHavenBagMessage':
-				useful['in_haven_bag'] = True
-				if not useful['contextualId'] or not useful['accountId']:
-					useful['contextualId'],useful['accountId']=ans['actors'][0]['contextualId'],ans['actors'][0]['accountId']
-			else:
-				useful['in_haven_bag'] = False
 			addMapComplementaryInformationsDataMessage(ans)
 
 		elif ans["__type__"] == "GameMapMovementMessage":
@@ -443,17 +486,22 @@ def read(type, data: Data):
 			useful["my_level"] += 1
 
 		elif ans["__type__"] == "CharacterStatsListMessage":
-			if ans["stats"]:
+
+			if ans["stats"] and 'characteristicId' in ans['stats']:
 				useful["kamas"] = ans["stats"]["kamas"]
-				if "energyPoints" in ans["stats"]:
-					useful["energy"] = ans["stats"]["energyPoints"]
-				useful['fight']["range"] = 0
-				for x in [*ans['stats']['range'].values()][1:]:
-					useful['fight']['range']+=x
-				useful["lifepoints"] = ans["stats"]["lifePoints"]
-				useful["fight"]["lifepoints"] = ans["stats"]["lifePoints"]
-				useful["fight"]["ap"] = int(ans["stats"]["actionPointsCurrent"])
-				useful["fight"]["mp"] = int(ans["stats"]["movementPointsCurrent"])
+				useful["maxLifePoints"]=0
+				for x in ans["stats"]["characteristics"]:
+					if x["characteristicId"]==29:
+						useful["energy"]=x["total"]
+					elif x["characteristicId"]==19:
+						useful['fight']['range']=x["objectsAndMountBonus"]
+					elif x["characteristicId"]==144:
+						useful["fight"]["ap"]=x["total"]
+					elif x["characteristicId"]==145:
+						useful["fight"]["mp"]=x["total"]
+					elif x["characteristicId"]==0 or x["characteristicId"]==11:
+						useful["maxLifePoints"]+=x["base"]+x["objectsAndMountBonus"]
+
 
 		elif ans["__type__"] == 'FighterStatsListMessage':
 			useful['fight']["range"],prev = 0,None
@@ -467,6 +515,7 @@ def read(type, data: Data):
 					prev=ans['spellId']
 				if ans['spellId'] == 4677:
 					useful['fight']['mp']-= ans['delta']
+					useful['fight']['mplost'].append(1)
 
 
 		elif ans["__type__"] == "GameActionFightPointsVariationMessage":
@@ -482,9 +531,12 @@ def read(type, data: Data):
 		elif ans["__type__"] == "LifePointsRegenEndMessage":
 			useful["maxLifePoints"] = ans["maxLifePoints"]
 			useful["lifepoints"] = ans["lifePoints"]
-			useful["fight"]["maxLifePoints"] = ans["maxLifePoints"]
-			useful["fight"]["lifepoints"] = ans["lifePoints"]
+			# logging.info(f"{useful['lifepoints'],useful['maxLifePoints'],ans}")
 
+		elif ans["__type__"] == "GameActionFightLifePointsGainMessage":
+			# useful["lifepoints"] += ans["delta"]
+			useful['lifepoints']=useful['maxLifePoints']
+			# logging.info(f"{useful['lifepoints'],useful['maxLifePoints'],ans}")
 
 		elif ans["__type__"] == "GameActionFightTeleportOnSameMapMessage":
 			target  = ans["targetId"]
@@ -494,11 +546,18 @@ def read(type, data: Data):
 				useful["fight"]["mypos"]
 		#     Handle each fighter
 		elif ans["__type__"] == "CharacterCharacteristicsInformations":
-			useful["energy"]=ans["energyPoints"]
-			useful["ap"]=ans["actionPointsCurrent"]
-			useful["mp"]=ans["movementPointsCurrent"]
-			useful["lifepoints"]=ans["lifePoints"]
-			useful["maxLifePoints"]=ans["maxLifePoints"]
+			useful["maxLifePoints"]=0
+			for x in ans["characteristics"]:
+				if 'characteristicId' in x:
+					if x["characteristicId"]==29:
+						useful["energy"]=x["total"]
+					elif x["characteristicId"]==144:
+						useful["ap"]=x["total"]
+					elif x["characteristicId"]==145:
+						useful["mp"]=x["total"]
+					elif x["characteristicId"]==0 or x["characteristicId"]==11:
+						useful["maxLifePoints"]+=x["base"]+x["objectsAndMountBonus"]
+
 
 		elif ans["__type__"] == "GameRolePlayPlayerLifeStatusMessage":
 			useful["phenix"] = ans["phenixMapId"]
@@ -527,8 +586,7 @@ def read(type, data: Data):
 		elif ans["__type__"]=="TreasureHuntFinishedMessage":
 			logging.info('hunt finished')
 			print(f'Hunt finished : {useful["server"]} - {useful["name"]} {strftime("%A, %d %B %Y %I:%M %p")}')
-			if "hunt" in useful:
-				del useful["hunt"]
+			if "hunt" in useful:	del useful["hunt"]
 
 		elif ans["__type__"] == "GameFightShowFighterMessage":
 			id = int(ans["informations"]["contextualId"])
@@ -536,12 +594,16 @@ def read(type, data: Data):
 				useful["mypos"] = ans["informations"]["disposition"]["cellId"]
 				useful["fight"]["my_teamid"] = ans["informations"]["spawnInfo"]["teamId"]
 				useful["my_level"] = ans["informations"]["level"]
-				useful["fight"]["ap"] = ans["informations"]["stats"]["actionPoints"]
+
+				# useful["fight"]["ap"] = ans["informations"]["stats"]["actionPoints"]
 
 			elif id < 0 and id not in useful["fight"]["mysummons"]:
 				useful["fight"]["enemyteamMembers"][id]["cellid"] = ans["informations"]["disposition"]["cellId"]
-				useful["fight"]["enemyteamMembers"][id]["lifepoints"] = ans["informations"]["stats"]["lifePoints"]
-				# useful["fight"]["enemyteamMembers"][id]["summoned"] = ans["informations"]["stats"]["summoned"]
+				for x in ans["informations"]["stats"]["characteristics"]["characteristics"]:
+					if x["characteristicId"]==0:
+						useful["fight"]["enemyteamMembers"][id]["lifepoints"]=x["total"]
+				# useful["fight"]["enemyteamMembers"][id]["lifepoints"] = ans["informations"]["stats"]["lifePoints"]
+				useful["fight"]["enemyteamMembers"][id]["summoned"] = ans["informations"]["stats"]["summoned"]
 				try:
 					useful["fight"]["enemyteamMembers"][id]["level"] = ans["informations"]["creatureLevel"]
 				except:
@@ -551,7 +613,22 @@ def read(type, data: Data):
 				useful["fight"]["teamMembers"][id]["previousPositions"] = ans["informations"]["previousPositions"]
 				useful["fight"]["teamMembers"][id]["level"] = ans["informations"]["level"]
 
-
+		elif ans["__type__"] == "GameFightFighterNamedInformations":
+			if not useful["contextualId"] and useful["name"]==ans["name"]:
+				useful["contextualId"]=ans["contextualId"]
+			if useful["contextualId"]==ans["contextualId"]:
+				useful["mypos"]=ans["disposition"]["cellId"]
+				if useful['infight']:
+					useful["maxLifePoints"]=0
+					for x in ans["stats"]["characteristics"]["characteristics"]:
+						if x["characteristicId"]==19:
+							useful['fight']['range']=x["objectsAndMountBonus"]
+						elif x["characteristicId"]==1:
+							useful["fight"]["ap"]=x["base"]+x["objectsAndMountBonus"]
+						elif x["characteristicId"]==23:
+							useful["fight"]["mp"]=x["base"]+x["objectsAndMountBonus"]
+						elif x["characteristicId"]==0 or x["characteristicId"]==11:
+							useful["maxLifePoints"]+=x["base"]+x["objectsAndMountBonus"]
 
 		elif ans["__type__"] == "GameFightSynchronizeMessage":
 			useful["fight"]["enemyteamMembers"] = {}
@@ -568,21 +645,22 @@ def read(type, data: Data):
 				if id == useful["contextualId"]:
 					useful["mypos"] = cellid
 					useful["fight"]["mypos"] = cellid
-				elif id < 0:
-					# if id in useful["fight"]["mysummons"]:
-						# useful["fight"]["mysummons"][id]["cellid"] = cellid
-					# else:
-					try:
-						useful["fight"]["enemyteamMembers"][id]["cellid"] = cellid
-					except:
-						useful["fight"]["enemyteamMembers"][id] = {}
-						useful["fight"]["enemyteamMembers"][id]["cellid"] = cellid
-				else:
-					try:
-						useful["fight"]["teamMembers"][id]["cellid"] = cellid
-					except:
-						useful["fight"]["teamMembers"][id] = {}
-						useful["fight"]["teamMembers"][id]["cellid"] = cellid
+				if useful['infight']:
+					if id < 0:
+						# if id in useful["fight"]["mysummons"]:
+							# useful["fight"]["mysummons"][id]["cellid"] = cellid
+						# else:
+						try:
+							useful["fight"]["enemyteamMembers"][id]["cellid"] = cellid
+						except:
+							useful["fight"]["enemyteamMembers"][id] = {}
+							useful["fight"]["enemyteamMembers"][id]["cellid"] = cellid
+					else:
+						try:
+							useful["fight"]["teamMembers"][id]["cellid"] = cellid
+						except:
+							useful["fight"]["teamMembers"][id] = {}
+							useful["fight"]["teamMembers"][id]["cellid"] = cellid
 
 
 		elif ans["__type__"] == "GameActionFightSlideMessage":
@@ -603,10 +681,15 @@ def read(type, data: Data):
 				useful["fight"]["turn"] = True
 
 		elif ans["__type__"] == "GameFightStartMessage":
+			logging.info("fight start msg!!!!!")
 			useful["fight"]["fight_state"] = "Started"
-			del useful["fight"]["positionsForDefenders"]
-			del useful["fight"]["positionsForChallengers"]
+			if "positionsForDefenders" in useful["fight"]:	del useful["fight"]["positionsForDefenders"]
+			if "positionsForChallengers" in useful["fight"]:	del useful["fight"]["positionsForChallengers"]
 
+		elif ans["__type__"] == "FightStartingPositions":
+			useful["fight"]["positionsForChallengers"] = ans["positionsForChallengers"]
+			useful["fight"]["positionsForDefenders"] = ans["positionsForDefenders"]
+		
 		elif ans["__type__"] == "GameFightTurnListMessage":
 			useful["fight"]["turn_list"] = ans["ids"]
 			try:
@@ -623,11 +706,10 @@ def read(type, data: Data):
 		elif ans["__type__"] == "GameActionFightDeathMessage":
 			tagetid = ans["targetId"]
 			sourceid = ans["sourceId"]
-			if tagetid in useful["fight"]["enemyteamMembers"]:
+			if useful['infight'] and tagetid in useful["fight"]["enemyteamMembers"]:
 				del useful["fight"]["enemyteamMembers"][tagetid]
 
 		elif ans["__type__"] == "GameFightStartingMessage":
-			id = 700
 			useful["infight"] = ans["fightId"]
 			useful["fight"] = {}
 			useful["fight"]["round"] = None
@@ -650,23 +732,18 @@ def read(type, data: Data):
 			useful["fight"]['alive'] = True
 			useful["fight"]['lock'] = False
 			useful["fight"]['spectator'] = False
+			useful["fight"]['mplost'] = []
+
 
 
 		elif ans["__type__"] == "GameFightPlacementPossiblePositionsMessage":
-			id = 703
 			useful["fight"]["positionsForChallengers"] = ans["positionsForChallengers"]
 			useful["fight"]["positionsForDefenders"] = ans["positionsForDefenders"]
 			useful["fight"]["my_teamid"] = ans["teamNumber"]
 
 		elif ans["__type__"] == "UpdateLifePointsMessage":
-			id = 5658
 			useful["lifepoints"] = ans["lifePoints"]
 			useful["maxLifePoints"] = ans["maxLifePoints"]
-			try:
-				useful["fight"]["lifepoints"] = ans["lifePoints"]
-				useful["fight"]["maxLifePoints"] = ans["maxLifePoints"]
-			except:
-				pass
 
 		elif ans["__type__"] == "GameFightFighterInformations":
 			# id = not message
@@ -674,17 +751,24 @@ def read(type, data: Data):
 			if ans["contextualId"] == useful["contextualId"]:
 				useful["mypos"] = ans["disposition"]["cellId"]
 				useful["fight"]["mypos"] = ans["disposition"]["cellId"]
-				useful["lifepoints"] = ans["stats"]["lifePoints"]
-				useful["maxLifePoints"] = ans["stats"]["maxLifePoints"]
-				useful["fight"]["lifepoints"] = ans["stats"]["lifePoints"]
-				useful["fight"]["maxLifePoints"] = ans["stats"]["maxLifePoints"]
-				useful["fight"]["ap"] = ans["stats"]["actionPoints"]
-			else:
+				useful["maxLifePoints"]=0
+				for x in ans["stats"]["characteristics"]["characteristics"]:
+					if x["characteristicId"]==19:
+						useful['fight']['range']=x["objectsAndMountBonus"]
+					elif x["characteristicId"]==1:
+						useful["fight"]["ap"]=x["base"]+x["objectsAndMountBonus"]
+					elif x["characteristicId"]==23:
+						useful["fight"]["mp"]=x["base"]+x["objectsAndMountBonus"]
+					elif x["characteristicId"]==0 or x["characteristicId"]==11:
+						useful["maxLifePoints"]+=x["base"]+x["objectsAndMountBonus"]
+			elif id <0:
 				useful["fight"]["enemyteamMembers"][id] = {}
 				useful["fight"]["enemyteamMembers"][id]["cellid"] = ans["disposition"]["cellId"]
 				useful["fight"]["enemyteamMembers"][id]["alive"] = ans["spawnInfo"]["alive"]
-				useful["fight"]["enemyteamMembers"][id]["lifepoints"] = ans["stats"]["lifePoints"]
-
+				for x in ans["stats"]["characteristics"]["characteristics"]:
+					if x["characteristicId"]==0:
+						useful["fight"]["enemyteamMembers"][id]["lifepoints"] = x["total"]
+						break
 		elif ans["__type__"] == "CharacterSelectionMessage":
 			useful["contextualId"] = ans["id"]
 
@@ -763,7 +847,10 @@ def read(type, data: Data):
 
 		elif ans["__type__"] == "GameFightEndMessage":
 			useful["infight"] = False
-
+			for x in ans['results']:
+				if x['id']==useful['contextualId']:
+					useful['w_l_f']=x['outcome']==2
+					break
 		elif ans["__type__"] == "InteractiveUsedMessage" and ans["entityId"] == useful["contextualId"]:
 			useful['Harvesting'] = ans["elemId"]
 
@@ -793,8 +880,6 @@ def read(type, data: Data):
 			except:
 				pass
 
-		else:
-			flag = False
 		return ans
 	except:
 		logging.error(f'Error in protocol {ans}',exc_info=1)

@@ -1,4 +1,4 @@
-from zlib import compress
+# from zlib import compress
 from sqlite3 import connect
 from socket import *
 from urllib.request import Request,urlopen
@@ -8,18 +8,18 @@ from winsound import PlaySound,SND_FILENAME,SND_ALIAS
 from subprocess import Popen,DEVNULL,PIPE
 from multiprocessing import Process
 from time import sleep,strftime
+from random import uniform,randint
 from platform import release
 from scapy.all import AsyncSniffer
 from scapy.all import Raw, IP, TCP
 if win10:=release()=='10':
 	from win10toast import ToastNotifier
 	notify=ToastNotifier()
-global parameters
-get_hwnd,get_window,bti,conn,nl,server,parameters=lambda hwnd:Application().connect(handle=hwnd.handle).top_window(),lambda text:find_elements(title_re=f'^{text}'),lambda b:int.from_bytes(b,'big',signed=True),connect('cbd',isolation_level=None),'\n\n',(gethostbyname(gethostname()), 16969),None
-conn.cursor().execute('create table if not exists accounts(login not null,password not null,name not null,server not null,primary key (login, name , server))')
+prev,get_hwnd,get_window,bti,conn,nl,server=None,lambda hwnd:Application().connect(handle=hwnd.handle).top_window(),lambda text:find_elements(title_re=f'^{text}'),lambda b:int.from_bytes(b,'big',signed=True),connect('cbd',isolation_level=None),'\n\n',(gethostbyname(gethostname()), 16969)
+conn.cursor().execute('create table if not exists accounts(login ,id primary key,name not null,server not null)')
 # temp=[x for x in conn.cursor().execute('select * from accounts order by login')]
 # conn.cursor().execute('drop table accounts')
-# conn.cursor().execute('create table if not exists accounts(login not null,password not null,name not null,server not null,primary key (login, name , server))')
+# conn.cursor().execute('create table if not exists accounts(login ,id primary key,name not null,server not null')
 # for x in temp:	conn.cursor().execute('insert into accounts values(?,?,?,?)',(x[0],x[1],x[2],x[3]))
 def click(app,x,y,c=1,s=0):
 	try:
@@ -50,66 +50,135 @@ def alert(app,severity):
 	sleep(10)
 	app.minimize()
 
-def hook(name,app=None):
+def get_children(app):
+	return app.children()[0].children()
+
+def dofus_closer():
+	for x in get_window('Dofus 2'):	get_hwnd(x).close()
+
+def verify_launcher(app):
+	if get_window('Ankama Launcher$') and app.is_minimized():	
+		if app.is_minimized():
+			app.set_focus()#force repaint
+			sleep(.5)
+	else:
+		Popen('call "C:/Program Files/Ankama/Ankama Launcher/Ankama Launcher"',stdout=PIPE,shell=True)
+		sleep(1)
+
+def hook(name,id):
 	try:
-		while Popen(args='REG QUERY HKCU\Environment /v eca',stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1][-2]=='1':	sleep(2)
+		print('Hooking to dofus client')
+		while Popen(args='REG QUERY HKCU\Environment /v eca',stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1][-2]=='1':	sleep(.5)
 		Popen('setx eca 1',stdout=DEVNULL)
-		if app:
-			app.close()
-			sleep(2)
-		for x in get_window('Dofus 2'):	get_hwnd(x).close()
+		dofus_closer()
 		while 1:
 			try:
 				urlopen(Request('https://www.google.tn/'),timeout=10)
 				break
 			except:
+				print("No internet connection was detected retrying after 2 minutes .....")
 				sleep(120)
-		while not (window:=get_window('Ankama Launcher$')):
-			Popen('call "Ankama Launcher"',stdout=DEVNULL,shell=True)
-			sleep(30)
-		app = Application('uia').connect(handle=window[0].handle).windows()[0]
-		# app.set_focus()#force repaint
-		# sleep(1)
-		for x in app.children()[0].children():
-			if x.get_properties()['texts'][0]=='PLAY':	break
-		tries=4
-		while not (window:=get_window('Dofus 2')) and not (window:=get_window(name)) and tries:
-			x.click()
-			tries-=1
-			sleep(25)
-		app.minimize()
+
+		if not (window:=get_window(name)):
+			text="MAKE SURE THIS SETTING IS SET TO : GAME OPTIONS -> GENERAL -> CONNECTION -> ...TO THE GAME"
+			top_bottom_lines=''.join(["-" for x in range(len(text))])
+			print('\n',top_bottom_lines,'\n',text,'\n',top_bottom_lines,'\n')
+			while not (window:=get_window('Ankama Launcher$')) or (window and 'WidgetWin' not in window[0].class_name):
+				try:
+					Popen('call "C:/Program Files/Ankama/Ankama Launcher/Ankama Launcher"',stdout=PIPE,shell=True)
+					sleep(2)
+				except:
+					print("Couldnt start Ankama Launcher")
+					return -1
+
+			app=Application('uia').connect(handle=window[0].handle).windows()[0]
+			counter=10
+
+			while counter:
+				verify_launcher(app)
+				temp_app=get_children(app)
+				passed_play=False
+				for x in range(len(temp_app)):
+					prop=temp_app[x].get_properties()
+					if prop['friendly_class_name']=='Button' and prop['texts'][0]=="PLAY": passed_play=True
+					elif passed_play and prop['friendly_class_name']=='Image':	
+						counter=0
+						break
+				else:
+					counter-=1
+					sleep(2)
+					if not counter:
+						print(f"Failed launching this account {name} {id} .","\nTry closing Ankama Launcher or open this account manually .")
+						return -1
+
+			verify_launcher(app)
+			temp_app[x].invoke()
+			sleep(.5)			
+			temp_app=get_children(app)
+
+			for y in range(x+1,len(temp_app)):
+				prop = temp_app[y].get_properties()
+				if prop['friendly_class_name']=='Static':
+					if prop['texts'][0]=="MULTI-ACCOUNTING":
+						verify_launcher(app)
+						temp_app[y].invoke()
+						sleep(.5)
+						temp_app=get_children(app)
+						for z in range(y+1,len(temp_app)):
+							tprop=temp_app[z].get_properties()
+							if tprop['friendly_class_name']=='Static' and tprop['texts'][0]==id:	break
+						else:
+							print("Failed identifying the account make sure it does exist in the Launcher and has the correct #id assigned to it .")
+							return -1
+						break
+
+			if temp_app[z+3].texts()[0]=="Non-Subscriber":
+				print("this account is not subscribed . Abort .")
+				return -1
+
+			counter=3
+			window=None
+
+			while counter and not window:
+				dofus_closer()
+				verify_launcher(app)
+				temp_app[y].invoke()
+				sleep(.5)
+				for w in range(z+1,len(temp_app)):
+					tprop = temp_app[w].get_properties()
+					if tprop['friendly_class_name']=='CheckBox':
+						verify_launcher(app)
+						temp_app[w-1].invoke()
+						count=30
+						while not (window:=get_window(name)) and (count:=count-1):	sleep(1)
+						break
+				if not counter:
+					print('Failed opening the account . Try this manually .')
+					return -1
+				counter-=1
+
 		app=get_hwnd(window[0])
 		app.move_window(x=-10, y=0, width=1400, height=768, repaint=True)
 		app.minimize()
-		# prev=False
-		# while not get_window(hook_args[-1]):
-		# 	if prev : press(app,'~',s=2)
-		# 	click(app,650,230,c=3,s=2)
-		# 	press(app,hook_args[0],s=2)
-		# 	press(app,'{TAB}',s=2)
-		# 	press(app,hook_args[1],s=2)
-		# 	press(app,'~',s=20)
-		# 	prev=True
 		return window[0]
 	except Exception as e:
 		print('Hooking dofus client failed ',e)
+		if type(e).__name__=='COMError':	
+			print('COMError failed invoke somewhere')
+			return hook(name,id) #bad if max depth reccursion reached .....
+		return -1
 	finally:
 		Popen('setx eca 0',stdout=DEVNULL)
-# import logging
-# logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', filename=f'logs/client.txt', level=logging.DEBUG)
-# logging.raiseExceptions = False
 
-def sniffer(p,conn,name):
+def sniffer(p,conn):
 	try:
 		global next_seq,wait,last20
 		data=p[Raw].load
 		seq,lendata=p[TCP].seq,len(data)
-		# logging.info(f'{name} , {seq} , {next_seq} , {lendata} , {seq in last20} , {len(wait)}')
 		if seq in last20:	
 			if last20[seq] < lendata:
 				next_seq=seq+lendata
 				while next_seq in last20:	next_seq+=last20[next_seq]
-				# logging.info(f'reset seq {next_seq}')
 			else:	return
 		last20={x:last20[x] for x in [*last20][-19:]}
 		last20[seq]=lendata
@@ -118,39 +187,79 @@ def sniffer(p,conn,name):
 		elif wait:
 			wait.append((seq,data))
 			wait.sort(key=lambda w: w[0])    
-			for i in wait:		conn.sendto(len((compressed:=compress(i[1]))).to_bytes(2,'big')+compressed,server)
+			# for i in wait:		conn.sendto(len((compressed:=compress(i[1]))).to_bytes(2,'big')+compressed,server)
+			for i in wait :	conn.sendto(len(i[1]).to_bytes(2,'big')+i[1],server)
 			next_seq,wait=i[0]+len(i[1]),[]
 		else:
 			next_seq=seq+lendata
-			conn.sendto(len(compressed:=compress(data)).to_bytes(2,'big')+compressed,server)
+			# conn.sendto(len(compressed:=compress(data)).to_bytes(2,'big')+compressed,server)
+			conn.sendto(len(data).to_bytes(2,'big')+data,server)
 	except Exception as e:
 		print(f'error in sniffer {e}')
 
-def execute(s,addr,window,name):
-	def post_hook():
-		app,pid=get_hwnd(window),str(window.process_id).encode()
-		for x in Popen("netstat -no",stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1].split(b'\r\n')[4:]:
-			if pid in x and addr in x and (b'5555' in x or b'443' in x):
-				client_port=(x[(t:=x.find(b':')+1):x.find(b' ',t)]).decode()
-				break
-		sniff=AsyncSniffer(filter=f'tcp and dst port {client_port} and host {addr.decode()}', lfilter=lambda p: p.haslayer(Raw),prn=lambda p: sniffer(p,s,name))
-		sniff.start()
-		# print(client_port,pid,sniff)
-		return sniff,app,pid
+def post_hook(window,s,addr,check=True):
+		try:
+			print('Post_hook called',window.name)
+			app,pid,counter=get_hwnd(window),str(window.process_id).encode(),24
+			if check:
+				while '-' not in window.name and counter:
+					counter-=1	
+					sleep(.5)
+				if not counter:	
+					print('Name undetected')
+					return None,app,None
+			for x in Popen("netstat -no",stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1].split(b'\r\n')[4:]:
+				if pid in x and addr in x and (b'5555' in x or b'443' in x):
+					client_port=(x[(t:=x.find(b':')+1):x.find(b' ',t)]).decode()
+					break
+			else:
+				print('Failed detecting client port',window.name)
+				return None,app,None
+			sniff=AsyncSniffer(filter=f'tcp and dst port {client_port} and host {addr.decode()}', lfilter=lambda p: p.haslayer(Raw),prn=lambda p: sniffer(p,s))
+			sniff.start()
+			return sniff,app,pid
+		except Exception as e:
+			print('Post_hook problem',e)
+			return None,app,None
+
+def close_app_sock(app,s):
+	try:
+		app.close()
+		s.close()
+		print('App and socket closed')
+	except Exception as e:
+		print('Already closed socket or app',e)
+
+def close_sniffer(sniff):
+	try:
+		sniff.stop(join=True)
+		while sniff.running:	sleep(1)
+		print("Sniffer closed")
+	except Exception as e:
+		print('Failed closing sniffer',e)
+
+def execute(s,addr,window,session_args,prev_parameters):
 	try:
 		global next_seq,wait,last20
 		next_seq,wait,last20=None,[],{}
-		sniff,app,pid=post_hook()
+		sniff,app,pid=post_hook(window,s,addr)
+		if not pid:
+			print('Failed post hooking',window.name)	
+			close_app_sock(app,s)
+			return new_session(session_args,prev_parameters)
 		while (data:=s.recv(1024)):
 			for p in data[:-3].split(b'$$$'):
 				if (args:=p.split(b'\n'))[0]==b'c':
 					click(app,bti(args[1]),bti(args[2]),bti(args[3]))
+
 				elif args[0]==b'p':
 					press(app,args[1].decode())
+
 				elif args[0]==b'a':
 					if alert(app,args[1].decode())==-1:
 						s.close()
 						return
+
 				elif args[0]==b'n' and win10:
 					notify.show_toast((x:=args[1].decode()),(y:=args[2].decode()),duration=30,threaded=True)
 					r=open("notifications.txt","a+")
@@ -159,32 +268,60 @@ def execute(s,addr,window,name):
 					with open('notifications.txt','w') as f:
 						f.seek(0,0)
 						f.write('%s : %s , %s\n'%(x,strftime("%A, %d %B %Y %I:%M %p"),y)+r)
-				# elif args[0]==b'r':
-				# 	sniff.stop(join=True)
-				# 	sleep(20)
-				# 	next_seq,wait,last20=None,[],{}
-				# 	sniff,app,pid=post_hook()
-				# 	press(app,'{ENTER 3}',s=10)
+
+				elif args[0]==b'd':
+					print('Disconnect')
+					close_app_sock(app,s)
+					close_sniffer(sniff)
+					return
+
+				elif args[0]==b'r':
+					print('Reconnect')
+					close_sniffer(sniff)
+					sleep(15)
+					next_seq,wait,last20=None,[],{}
+					sniff,app,pid=post_hook(window,s,addr,False)
+					if not pid:
+						print('Failed post hook after reconnection',window.name)
+						close_app_sock(app,s)
+						print('Initilising a new session') 
+						return new_session(session_args,prev_parameters)
+					try:
+						press(app,'{ENTER 3}',s=25)
+						press(app,'{ENTER 3}',s=1)
+					except Exception as e:
+						print('Window error',e)
+
+				elif args[0]==b'o':
+					print('Disconnect then reconnect')
+					close_app_sock(app,s)
+					temp=prev_parameters.split(b'\n')
+					temp[2]=args[1]
+					close_sniffer(sniff)
+					if len(args)==3:
+						sep=temp[7].find(b'|')
+						t=temp[7][sep+1:].split(b'-')
+						t=randint(int(t[0]),int(t[1]))
+						print('Pausing function triggred sleeping for ',t,' minutes before reconnecting')
+						sleep(t*60)
+					else:
+						sleep(uniform(120,200))
+					return new_session(session_args,b'\n'.join(temp) if pid else prev_parameters)
+					
 	except Exception as e:
-		# logging.critical('exec error',e)
 		print('exec error',e)
 		s.close()
-		# app.close()
-		# if not get_window(name):
-		# 		sniff.stop(join=True)
-		# 		window=hook(name,app)
-		# 		next_seq,wait,last20=None,[],{}
-		# 		sniff,app,pid=post_hook()
 
-def new_session(session_args):
-	def safe_mode():
+def new_session(session_args,parameters=None):
+	global prev
+	def safe_mode(inp=False):
 		with open('harvest.opt','r') as f:	temp=f.read().encode()
 		while 1:
-			if (inp:=input('\nActivate safe mode (you\'re character will collect resources only if there is no other player on same map) ?\n1 - Yes\n2 - No\n>>')) in ('1','2'):	return temp+b'\n'+inp.encode()
-			else:	print('Wrong option')
-	global parameters
+			if not inp:	
+				if not (inp:=input('\nActivate safe mode (you\'re character will collect resources only if there is no other player on same map) ?\n1 - Yes\n2 - No\n>>')) in ('1','2'):	print('Wrong option')
+			else:	return temp+b'\n'+inp.encode()		
 	try:
-		app=hook(session_args[-2])
+		if prev and not parameters:	parameters=prev
 		s=socket(AF_INET,SOCK_STREAM)
 		s.connect(server)
 		print('Connected')
@@ -195,13 +332,13 @@ def new_session(session_args):
 			key=b"kissy"
 			algo=input('\nChoose An Algorithm :\n1 - Treasure Hunt\n2 - Harvest\n3 - Level Up (change map to start leveling)\n4 - Explore Zaaps (you need to have access to havenbag && already have astrub zaap)\n5 - Sell resources\n>> ').encode()
 			parameters=key+b'\n'+algo+b'\n'
+			with open('config.opt','r') as f:
+				temp=f.read().split('\n')
+				for x in range(len(temp)-1):
+					sep=temp[x].find(':')
+					if sep>-1:	parameters+=temp[x][sep+1:].strip().encode()+b'\n'
 			if algo == b'1':
-				while 1:
-					if (inp:=input('\nDo you want to harvest resources while doing Treasure Hunt ?\n1 - Yes\n2 - No\n>>'))=='1':
-						parameters+=safe_mode()
-						break
-					elif inp=='2':	break
-					else:	print('Wrong option')
+				parameters+=safe_mode(t) if (t:=temp[6][temp[6].find(':')+1:].strip()) in ('1','2') else b'3'
 			elif algo == b'2':
 				parameters+=safe_mode()
 			elif algo == b'3':
@@ -210,6 +347,7 @@ def new_session(session_args):
 						parameters+=inp.encode()
 						break
 					else:	print('Wrong option')
+		if (app:=hook(session_args[-2],session_args[-3]))==-1:	return
 		s.sendto((session_args[-2]+'\n'+session_args[-1]+'\n').encode()+parameters,server)
 		if not (addr:=s.recv(64)):
 			print('Invalid Key or maximum connection attempt reached')
@@ -217,8 +355,9 @@ def new_session(session_args):
 		print('Key accepted')
 		s.settimeout(600)
 		s.setblocking(1)
-		p=Process(target=execute,args=(s,addr,app,session_args[-2]))
+		p=Process(target=execute,args=(s,addr,app,session_args,parameters))
 		p.start()
+		prev=parameters
 		return p.pid
 	except Exception as e:
 		print('session error',e)
@@ -228,8 +367,8 @@ if __name__=="__main__":
 	execution_pool={}
 	def prn_accounts():
 		print(f'{nl[0]}Existing accounts :{nl}')
-		for raw in db.execute('select rowid,name,server,login from accounts order by rowid'):
-			print(f'Id : {raw[0]}\tCharacter name : {raw[1]}\tServer name : {raw[2]}\tAccount name : {raw[3]}{nl}')
+		for raw in db.execute('select rowid,name,server,login,id from accounts order by rowid'):
+			print(f'Id : {raw[0]}\tCharacter name : {raw[1]}\tServer name : {raw[2]}\t    Account name : {raw[3]}\tAccount id : {raw[4]}{nl}')
 	while 1:
 		db=conn.cursor()
 		try:
@@ -246,7 +385,7 @@ if __name__=="__main__":
 				first=True
 				while 1:
 					if first or (i:=input(f'{nl}Add another account ? : y/n{nl}>> ').lower())=='y':
-						db.execute('insert into accounts values(?,?,?,?)',(input(f"{nl[0]}Enter account name : "),input(f"{nl[0]}Enter account password : "),input(f"{nl[0]}Enter character name : "),input(f"{nl[0]}Enter server name : "))) 
+						db.execute('insert into accounts values(?,?,?,?)',(input(f"{nl[0]}Enter account name : "),"#"+input(f"{nl[0]}Enter account id : "),input(f"{nl[0]}Enter character name : "),input(f"{nl[0]}Enter server name : "))) 
 						first=False
 					elif i=='n':
 						break

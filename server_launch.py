@@ -1,11 +1,10 @@
 if __name__=='__main__':
 	from server_start import launch_in_process as f
-	from multiprocessing import Process,Manager,Lock
+	from multiprocessing import Process
 	from threading import Thread
 	from socket import *
 	from functools import reduce
-	global connected,fix_list,lock
-	fix_list,lock=Manager().Value(0,{}),Lock()
+	global connected
 	def launch_in_thread(conn):
 		global connected
 		try:
@@ -28,7 +27,7 @@ if __name__=='__main__':
 				connected[client_key]=0
 			connected[client_key] += 1
 			print('Connected clients : ', reduce(lambda x,y:x+y,connected.values(),0) ,'\n', connected)
-			p=Process(target=f,args=(conn,client,client_name,server_name,parameters,fix_list,lock))
+			p=Process(target=f,args=(conn,client,client_name,server_name,parameters))
 			p.start()
 			p.join()
 			connected[client_key]-=1
@@ -37,7 +36,7 @@ if __name__=='__main__':
 		else:
 			conn.close()
 	print('Initiating new session')
-	s,connected,keys = socket(AF_INET, SOCK_STREAM),{},{'kissy':20,'mina':20,'zaydoun':5,'hazemhentai':5}
+	s,connected,keys = socket(AF_INET, SOCK_STREAM),{},{'kissy':100}
 	s.bind((gethostbyname(gethostname()),16969))
 	print(gethostbyname(gethostname()))
 	s.listen(100)#maximum number of simultaneous connections
