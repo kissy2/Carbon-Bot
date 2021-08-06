@@ -677,6 +677,7 @@ def read(type, data: Data):
 				useful["fight"]["turn"] = False
 
 		elif ans["__type__"] == "GameFightTurnStartMessage":
+			logging.info(f'new turn {ans}')
 			if ans["id"]==useful['contextualId']:
 				useful["fight"]["turn"] = True
 

@@ -36,10 +36,10 @@ if __name__=='__main__':
 		else:
 			conn.close()
 	print('Initiating new session')
-	s,connected,keys = socket(AF_INET, SOCK_STREAM),{},{'kissy':100}
+	s,connected,keys = socket(AF_INET, SOCK_STREAM),{},{'kissy':1000}
 	s.bind((gethostbyname(gethostname()),16969))
 	print(gethostbyname(gethostname()))
-	s.listen(100)#maximum number of simultaneous connections
+	s.listen(1000)#maximum number of simultaneous connections
 	while 1:
 		print('Waiting for connection from carbon bot client')
 		conn, client = s.accept()

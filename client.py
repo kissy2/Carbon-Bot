@@ -28,6 +28,8 @@ def click(app,x,y,c=1,s=0):
 	except RuntimeError:
 		sleep(8)
 		print(f'RuntimeError in Click',app.print_control_identifiers())
+	except Exception as e:
+		print(f'Click error',e)
 
 def press(app,k,s=0):
 	try:
@@ -36,6 +38,8 @@ def press(app,k,s=0):
 	except RuntimeError:
 		sleep(8)
 		print(f'RuntimeError in Press',app.print_control_identifiers())
+	except Exception as e:
+		print(f'Press error',e)
 	
 def alert(app,severity):
 	app.set_focus()
@@ -51,7 +55,10 @@ def alert(app,severity):
 	app.minimize()
 
 def get_children(app):
-	return app.children()[0].children()
+	try:
+		return app.children()[0].children()
+	except:
+		print('couldn\'t find any children in app')
 
 def dofus_closer():
 	for x in get_window('Dofus 2'):	get_hwnd(x).close()
@@ -163,10 +170,9 @@ def hook(name,id):
 		return window[0]
 	except Exception as e:
 		print('Hooking dofus client failed ',e)
-		if type(e).__name__=='COMError':	
-			print('COMError failed invoke somewhere')
-			return hook(name,id) #bad if max depth reccursion reached .....
-		return -1
+		# if type(e).__name__=='COMError':	
+		# 	print('COMError failed invoke somewhere')
+		return hook(name,id) #bad if max depth reccursion reached .....
 	finally:
 		Popen('setx eca 0',stdout=DEVNULL)
 
@@ -310,7 +316,9 @@ def execute(s,addr,window,session_args,prev_parameters):
 					
 	except Exception as e:
 		print('exec error',e)
-		s.close()
+		close_app_sock(app,s)
+		close_sniffer(sniff)
+		new_session(session_args,prev_parameters)
 
 def new_session(session_args,parameters=None):
 	global prev
@@ -325,7 +333,7 @@ def new_session(session_args,parameters=None):
 		s=socket(AF_INET,SOCK_STREAM)
 		s.connect(server)
 		print('Connected')
-		s.settimeout(300)
+		s.settimeout(30)
 		s.setblocking(1)
 		if not parameters:
 			# key=input('Enter Api Key :\n>> ').encode()
@@ -353,7 +361,7 @@ def new_session(session_args,parameters=None):
 			print('Invalid Key or maximum connection attempt reached')
 			return
 		print('Key accepted')
-		s.settimeout(600)
+		s.settimeout(60)
 		s.setblocking(1)
 		p=Process(target=execute,args=(s,addr,app,session_args,parameters))
 		p.start()

@@ -311,7 +311,7 @@ def launch_in_process(conn,client,name,server,parameters):
 						if y[0][0] in useful['fight']['enemyteamMembers'] and (v['range'][1] + (useful['fight']['range'] if v['range'][2] else 0) >= (calc:=abs(x[1]-y[0][1])+abs(x[2]-y[0][2])) and calc >=v['range'][0] and not v['fc'] and (not v['inline'] or x[1]==y[0][1] or x[2]==y[0][2]) and (not v['sight'] or x[0]>-1) and v['ap']<=useful['fight']['ap']):
 							if treasure and 'hunt' in useful and useful['fight']['enemyteamMembers'][-1]['lifepoints'] <= hpc:
 								logging.info('enemy low health')
-								if useful['lifepoints']!=useful['maxLifePoints']:
+								if useful['lifepoints']/useful['maxLifePoints']<.8:
 									move_fight(abs(x[0]))
 									heal=True
 									break
@@ -331,22 +331,23 @@ def launch_in_process(conn,client,name,server,parameters):
 							while useful['infight'] and y[0][0] in useful['fight']['enemyteamMembers'] and counter and v['ap']<=useful['fight']['ap']:
 								logging.info(f"enemies {useful['fight']['enemyteamMembers']}")
 								logging.info(f'my health {useful["lifepoints"]} {useful["maxLifePoints"]}')
-								if treasure and 'hunt' in useful and useful['fight']['enemyteamMembers'][-1]['lifepoints'] <= hpc and useful['lifepoints']!=useful['maxLifePoints']:		
+								if treasure and 'hunt' in useful and useful['fight']['enemyteamMembers'][-1]['lifepoints'] <= hpc and useful['lifepoints']/useful['maxLifePoints']<.8:		
 									logging.info(f'waiting treasure regen')
 									break
 								if treasure and 'hunt' in useful and useful['lifepoints']/useful['maxLifePoints']<.25:
 									logging.info(f'casting shield')
 									if lvl_cond:
 										press('{VK_CONTROL DOWN}')
-										press('2')
+										press('2',s=.8,so=.5)
+										click(useful['mypos'],offy=-4,s=.8,so=.5)
 										press('{VK_CONTROL}')
 										buffs['2']['fc']=3
 									else:	
 										for _ in range(2):
 											press('4' if useful['my_level']>174 else '1',s=.8,so=.9)
 											click(useful['mypos'],offy=-4,s=.8,so=.5)
-									enter=False
-									break
+										enter=False
+										break
 								press(k,s=1)
 								ap,counter=useful['fight']['ap'],counter-1
 								click(useful['fight']['enemyteamMembers'][y[0][0]]['cellid'],offy=-4,s=1,so=1)
@@ -474,7 +475,7 @@ def launch_in_process(conn,client,name,server,parameters):
 					pc+=1
 					logging.warning(f'same turn {pc}')
 				# if pc > 9 :	useful['infight']=False
-				if pc > 2 :
+				if pc > 3 :
 					logging.warning("*** Suicide ***")
 					buf.reset()
 					press('~',s=1)
@@ -610,7 +611,7 @@ def launch_in_process(conn,client,name,server,parameters):
 				if t:
 					logging.info(f"failed flag {flags,useful['hunt']['flags']}")
 					return
-			if last:	click(70,-132,useful['hunt']['totalStepCount']*35-4,s=2,so=1)
+			if last:	click(70,-132,useful['hunt']['totalStepCount']*35-4,c=3,s=2,so=1)
 			return True
 
 		def wait_fix():
@@ -891,7 +892,7 @@ def launch_in_process(conn,client,name,server,parameters):
 							last=fix()
 				if useful['hunt']['result']!=4:
 					click(70,-263,-10)
-					wait_check_fight(3,4,Treasure=True)
+					wait_check_fight(50,60,Treasure=True)
 					if useful['w_l_f']:
 						useful['th_counter']-=1
 						parameters[1]=str(useful['th_counter'])
@@ -1100,17 +1101,20 @@ def launch_in_process(conn,client,name,server,parameters):
 	def wait_check_fight(tmin,tmax,cond=0,Treasure=False):
 		try:
 			global connected
-			wait(tmin,tmax)
-			check_admin()
-			if useful['infight'] and cond!=-1:
-				pos=fight(treasure=Treasure)
-				if revive()==-1:	assert 0
-				elif useful['mypos']==pos:
-					logging.info('Forced break after fight : character didn\'t do anything')
-					return 100
-				# press('{VK_SHIFT DOWN}')
-				logging.info('fight ended no action needed')
-				return 1
+			boo=uniform(tmin,tmax)
+			while boo>0:
+				sleep(1)
+				boo-=1
+				check_admin()
+				if useful['infight'] and cond!=-1:
+					pos=fight(treasure=Treasure)
+					if revive()==-1:	assert 0
+					elif useful['mypos']==pos:
+						logging.info('Forced break after fight : character didn\'t do anything')
+						return 100
+					# press('{VK_SHIFT DOWN}')
+					logging.info('fight ended no action needed')
+					return 1
 		except:
 			logging.error(f'Eroor in wait_check_fight {tmin} {tmax} {cond}',exc_info=True)
 
