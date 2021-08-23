@@ -50,7 +50,7 @@ useful = {
 		  'name':None,
 		  'reset':False,
 		  'client_render_time':0,
-		  'mount':{},
+		  'mount':{'mp_bonus':0,'vitality_bonus':0},
 		  'relog':False,
 		  'shortcuts':[],
 		  'inventory':{},
@@ -89,6 +89,7 @@ def readBooleans(boolVars, data):
 def addMapComplementaryInformationsDataMessage(ans):
 	try:
 		logging.info(f'map changed : {ans["mapId"]}')
+
 		useful["resources"] = {}
 		useful["map_mobs"] = {}
 		useful["map_merchant"] = {}
@@ -368,18 +369,19 @@ def read(type, data: Data):
 			useful['dialog']=True
 
 		elif ans["__type__"] == "MountClientData":
+			logging.info(f'mount {ans}')
 			useful['mount']['lvl'] = ans['level']
 			useful['mount']['energy'] = ans['energy']
 			for x in ans['effectList']:
 				if x['actionId']==125:
-					useful['mount']['bonus']=x['value']
-					break
+					useful['mount']['vitality_bonus']=x['value']
+				elif x['actionId']==128:
+					useful['mount']['mp_bonus']=x['value']
 
 		elif ans["__type__"] == "MountRidingMessage":
 			useful['mount']['riding'] = ans['isRiding']
-			if ans['isRiding']:
-				useful['lifepoints']+=useful['mount']['bonus']
-
+			if ans['isRiding']:	useful['lifepoints']+=useful['mount']['vitality_bonus']
+			
 		elif ans["__type__"] == "GameFightNewRoundMessage":
 			if useful['infight']:
 				useful["fight"]["round"] = ans["roundNumber"]
@@ -707,12 +709,11 @@ def read(type, data: Data):
 		elif ans["__type__"] == "GameActionFightDeathMessage":
 			tagetid = ans["targetId"]
 			sourceid = ans["sourceId"]
-			if useful['infight'] and tagetid in useful["fight"]["enemyteamMembers"]:
+			if useful['infight'] and tagetid and tagetid in useful["fight"]["enemyteamMembers"]:
 				del useful["fight"]["enemyteamMembers"][tagetid]
 
 		elif ans["__type__"] == "GameFightStartingMessage":
 			useful["infight"] = ans["fightId"]
-			useful["fight"] = {}
 			useful["fight"]["round"] = None
 			useful["fight"]["markedcells"] = []
 			useful["fight"]["turn"] = None

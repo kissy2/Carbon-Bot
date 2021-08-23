@@ -19,7 +19,8 @@ prev,get_hwnd,get_window,bti,conn,nl,server=None,lambda hwnd:Application().conne
 conn.cursor().execute('create table if not exists accounts(login ,id primary key,name not null,server not null)')
 # temp=[x for x in conn.cursor().execute('select * from accounts order by login')]
 # conn.cursor().execute('drop table accounts')
-# conn.cursor().execute('create table if not exists accounts(login ,id primary key,name not null,server not null')
+# conn.cursor().execute('create table if not exists accounts(login ,id primary key,name not null,server not null)')
+# print(temp)
 # for x in temp:	conn.cursor().execute('insert into accounts values(?,?,?,?)',(x[0],x[1],x[2],x[3]))
 def click(app,x,y,c=1,s=0):
 	try:
@@ -74,7 +75,7 @@ def verify_launcher(app):
 
 def hook(name,id):
 	try:
-		print('Hooking to dofus client')
+		print('Hooking to dofus client',name)
 		while Popen(args='REG QUERY HKCU\Environment /v eca',stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1][-2]=='1':	sleep(.5)
 		Popen('setx eca 1',stdout=DEVNULL)
 		dofus_closer()
@@ -170,8 +171,10 @@ def hook(name,id):
 		return window[0]
 	except Exception as e:
 		print('Hooking dofus client failed ',e)
+		Popen('setx eca 0',stdout=DEVNULL)
 		# if type(e).__name__=='COMError':	
 		# 	print('COMError failed invoke somewhere')
+		sleep(300)
 		return hook(name,id) #bad if max depth reccursion reached .....
 	finally:
 		Popen('setx eca 0',stdout=DEVNULL)
