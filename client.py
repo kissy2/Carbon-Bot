@@ -16,10 +16,10 @@ if win10:=release()=='10':
 	from win10toast import ToastNotifier
 	notify=ToastNotifier()
 prev,get_hwnd,get_window,bti,conn,nl,server=None,lambda hwnd:Application().connect(handle=hwnd.handle).top_window(),lambda text:find_elements(title_re=f'^{text}'),lambda b:int.from_bytes(b,'big',signed=True),connect('cbd',isolation_level=None),'\n\n',(gethostbyname(gethostname()), 16969)
-conn.cursor().execute('create table if not exists accounts(login ,id primary key,name not null,server not null)')
+conn.cursor().execute('create table if not exists accounts(login primary key,password not null,name not null,server not null)')
 # temp=[x for x in conn.cursor().execute('select * from accounts order by login')]
 # conn.cursor().execute('drop table accounts')
-# conn.cursor().execute('create table if not exists accounts(login ,id primary key,name not null,server not null)')
+# conn.cursor().execute('create table if not exists accounts(login primary key,password not null,name not null,server not null)')
 # print(temp)
 # for x in temp:	conn.cursor().execute('insert into accounts values(?,?,?,?)',(x[0],x[1],x[2],x[3]))
 def click(app,x,y,c=1,s=0):
@@ -55,28 +55,15 @@ def alert(app,severity):
 	sleep(10)
 	app.minimize()
 
-def get_children(app):
-	try:
-		return app.children()[0].children()
-	except:
-		print('couldn\'t find any children in app')
 
 def dofus_closer():
 	for x in get_window('Dofus 2'):	get_hwnd(x).close()
 
-def verify_launcher(app):
-	if get_window('Ankama Launcher$') and app.is_minimized():	
-		if app.is_minimized():
-			app.set_focus()#force repaint
-			sleep(.5)
-	else:
-		Popen('call "C:/Program Files/Ankama/Ankama Launcher/Ankama Launcher"',stdout=PIPE,shell=True)
-		sleep(1)
 
-def hook(name,id):
+def hook(login,password,name):
 	try:
 		print('Hooking to dofus client',name)
-		while Popen(args='REG QUERY HKCU\Environment /v eca',stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1][-2]=='1':	sleep(.5)
+		while Popen(args='REG QUERY HKCU\Environment /v eca',stdout=PIPE,stderr=DEVNULL).communicate()[0][:-1][-2]=='1':	sleep(2)
 		Popen('setx eca 1',stdout=DEVNULL)
 		dofus_closer()
 		while 1:
@@ -88,94 +75,33 @@ def hook(name,id):
 				sleep(120)
 
 		if not (window:=get_window(name)):
-			text="MAKE SURE THIS SETTING IS SET TO : GAME OPTIONS -> GENERAL -> CONNECTION -> ...TO THE GAME"
-			top_bottom_lines=''.join(["-" for x in range(len(text))])
-			print('\n',top_bottom_lines,'\n',text,'\n',top_bottom_lines,'\n')
-			while not (window:=get_window('Ankama Launcher$')) or (window and 'WidgetWin' not in window[0].class_name):
+			while not (window:=get_window('Dofus 2.')):
 				try:
-					Popen('call "C:/Program Files/Ankama/Ankama Launcher/Ankama Launcher"',stdout=PIPE,shell=True)
-					sleep(2)
-				except:
-					print("Couldnt start Ankama Launcher")
+					Popen('call "D:/Games/Ankama/dofus/Dofus.exe"',stdout=DEVNULL,shell=True)
+					sleep(10)
+				except Exception as e:
+					print("Couldnt start dofus client",e)
 					return -1
+			app=get_hwnd(window[0])
+			app.move_window(x=-10, y=0, width=1400, height=768, repaint=True)
+			app.minimize()
+			click(app,700,430,s=1)
+			click(app,675,225,c=5,s=1)
+			press(app,login)
+			press(app,'{TAB}',s=1)
+			press(app,password)
+			press(app,'{ENTER 3}',s=10)
+			if not (window:=get_window(name)):	click(app,675,185,c=3,s=20)
+		else:
+			app=get_hwnd(window[0])
 
-			app=Application('uia').connect(handle=window[0].handle).windows()[0]
-			counter=10
-
-			while counter:
-				verify_launcher(app)
-				temp_app=get_children(app)
-				passed_play=False
-				for x in range(len(temp_app)):
-					prop=temp_app[x].get_properties()
-					if prop['friendly_class_name']=='Button' and prop['texts'][0]=="PLAY": passed_play=True
-					elif passed_play and prop['friendly_class_name']=='Image':	
-						counter=0
-						break
-				else:
-					counter-=1
-					sleep(2)
-					if not counter:
-						print(f"Failed launching this account {name} {id} .","\nTry closing Ankama Launcher or open this account manually .")
-						return -1
-
-			verify_launcher(app)
-			temp_app[x].invoke()
-			sleep(.5)			
-			temp_app=get_children(app)
-
-			for y in range(x+1,len(temp_app)):
-				prop = temp_app[y].get_properties()
-				if prop['friendly_class_name']=='Static':
-					if prop['texts'][0]=="MULTI-ACCOUNTING":
-						verify_launcher(app)
-						temp_app[y].invoke()
-						sleep(.5)
-						temp_app=get_children(app)
-						for z in range(y+1,len(temp_app)):
-							tprop=temp_app[z].get_properties()
-							if tprop['friendly_class_name']=='Static' and tprop['texts'][0]==id:	break
-						else:
-							print("Failed identifying the account make sure it does exist in the Launcher and has the correct #id assigned to it .")
-							return -1
-						break
-
-			if temp_app[z+3].texts()[0]=="Non-Subscriber":
-				print("this account is not subscribed . Abort .")
-				return -1
-
-			counter=3
-			window=None
-
-			while counter and not window:
-				dofus_closer()
-				verify_launcher(app)
-				temp_app[y].invoke()
-				sleep(.5)
-				for w in range(z+1,len(temp_app)):
-					tprop = temp_app[w].get_properties()
-					if tprop['friendly_class_name']=='CheckBox':
-						verify_launcher(app)
-						temp_app[w-1].invoke()
-						count=30
-						while not (window:=get_window(name)) and (count:=count-1):	sleep(1)
-						break
-				if not counter:
-					print('Failed opening the account . Try this manually .')
-					return -1
-				counter-=1
-
-		app=get_hwnd(window[0])
-		app.move_window(x=-10, y=0, width=1400, height=768, repaint=True)
-		app.minimize()
+		assert name in window[0].name
 		return window[0]
 	except Exception as e:
 		print('Hooking dofus client failed ',e)
 		Popen('setx eca 0',stdout=DEVNULL)
-		# if type(e).__name__=='COMError':	
-		# 	print('COMError failed invoke somewhere')
 		sleep(300)
-		return hook(name,id) #bad if max depth reccursion reached .....
+		return hook(login,password,name) #bad if max depth reccursion reached .....
 	finally:
 		Popen('setx eca 0',stdout=DEVNULL)
 
@@ -358,7 +284,8 @@ def new_session(session_args,parameters=None):
 						parameters+=inp.encode()
 						break
 					else:	print('Wrong option')
-		if (app:=hook(session_args[-2],session_args[-3]))==-1:	return
+
+		if (app:=hook(session_args[0],session_args[1],session_args[2]))==-1:	return
 		s.sendto((session_args[-2]+'\n'+session_args[-1]+'\n').encode()+parameters,server)
 		if not (addr:=s.recv(64)):
 			print('Invalid Key or maximum connection attempt reached')
@@ -378,8 +305,8 @@ if __name__=="__main__":
 	execution_pool={}
 	def prn_accounts():
 		print(f'{nl[0]}Existing accounts :{nl}')
-		for raw in db.execute('select rowid,name,server,login,id from accounts order by rowid'):
-			print(f'Id : {raw[0]}\tCharacter name : {raw[1]}\tServer name : {raw[2]}\t    Account name : {raw[3]}\tAccount id : {raw[4]}{nl}')
+		for raw in db.execute('select rowid,name,server,login from accounts order by rowid'):
+			print(f'Id : {raw[0]}\tCharacter name : {raw[1]}\tServer name : {raw[2]}\t    Account name : {raw[3]}')
 	while 1:
 		db=conn.cursor()
 		try:
@@ -396,7 +323,7 @@ if __name__=="__main__":
 				first=True
 				while 1:
 					if first or (i:=input(f'{nl}Add another account ? : y/n{nl}>> ').lower())=='y':
-						db.execute('insert into accounts values(?,?,?,?)',(input(f"{nl[0]}Enter account name : "),"#"+input(f"{nl[0]}Enter account id : "),input(f"{nl[0]}Enter character name : "),input(f"{nl[0]}Enter server name : "))) 
+						db.execute('insert into accounts values(?,?,?,?)',(input(f"{nl[0]}Enter account name : "),input(f"{nl[0]}Enter account password : "),input(f"{nl[0]}Enter character name : "),input(f"{nl[0]}Enter server name : "))) 
 						first=False
 					elif i=='n':
 						break
