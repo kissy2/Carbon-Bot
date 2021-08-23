@@ -78,24 +78,24 @@ def hook(login,password,name):
 			while not (window:=get_window('Dofus 2.')):
 				try:
 					Popen('call "D:/Games/Ankama/dofus/Dofus.exe"',stdout=DEVNULL,shell=True)
-					sleep(10)
+					sleep(15)
 				except Exception as e:
 					print("Couldnt start dofus client",e)
 					return -1
 			app=get_hwnd(window[0])
-			app.move_window(x=-10, y=0, width=1400, height=768, repaint=True)
 			app.minimize()
 			click(app,700,430,s=1)
 			click(app,675,225,c=5,s=1)
 			press(app,login)
 			press(app,'{TAB}',s=1)
 			press(app,password)
-			press(app,'{ENTER 3}',s=10)
-			if not (window:=get_window(name)):	click(app,675,185,c=3,s=20)
-		else:
-			app=get_hwnd(window[0])
-
-		assert name in window[0].name
+			press(app,'{ENTER 3}')
+		
+		counter=40
+		while not (window:=get_window(name)) and (counter:=counter-1):	sleep(1)
+		app=get_hwnd(window[0])
+		app.move_window(x=-10, y=0, width=1400, height=768, repaint=True)
+		app.minimize()
 		return window[0]
 	except Exception as e:
 		print('Hooking dofus client failed ',e)

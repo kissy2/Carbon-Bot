@@ -231,16 +231,15 @@ def launch_in_process(conn,client,name,server,parameters):
 						logging.info('not nested')
 						press('{ENTER 3}',s=1,so=2) 
 						click(554,offy=120,s=.5)
-						logging.info('not nested 2')
 						if useful['mapid'] in (None,162793472):	
 							# useful['mapid']=choice((88085773,128452097,128453121,128451073)) #random maps to avoid no teleporting allowed maps
 							logging.warning('no mapid detected reconnecting')
+							click(247,s=.5)
 							click(554,offy=120,s=.5)
 							press('{VK_ESCAPE}',s=1,so=1)
 							click(244,offy=36,s=1,so=1,c=5)
 							press('~',s=5,so=5)
-							press('~',s=5,so=5)
-							send(b'r',s=60)
+							send(b'r',s=45,so=20)
 						return get_current_node(cond,mapid,None,True)
 					except Exception as e:
 						logging.info(f'c koi cette merde {e}')
@@ -434,7 +433,7 @@ def launch_in_process(conn,client,name,server,parameters):
 				waitp=b''
 				press('~',s=1)
 				click(557,offy=150,offx=89,s=1,so=1)
-				press('~',s=3,so=3,c=3)
+				press('{ENTER 3 }',s=3,so=3)
 				revive()
 				send(bytes('o\n'+parameters[1],'utf-8'))
 				connected=False
@@ -503,7 +502,7 @@ def launch_in_process(conn,client,name,server,parameters):
 					waitp=b''
 					press('~',s=1)
 					click(557,offy=150,offx=89,s=1,so=1)
-					press('~',s=3,so=3,c=3)
+					press('{ENTER 3}',s=3,so=3)
 					revive()
 					send(bytes('o\n'+parameters[1],'utf-8'))
 					connected=False
@@ -916,7 +915,22 @@ def launch_in_process(conn,client,name,server,parameters):
 							last=fix()
 				if useful['hunt']['result']!=4:
 					click(70,-263,-10)
-					wait_check_fight(50,60,Treasure=True)
+					if not wait_check_fight(50,60,Treasure=True):
+						logging.warning("### Suicide ###")
+						buf.reset()
+						waitp=b''
+						press('~',s=1)
+						click(247,s=.5)
+						click(557,offy=150,offx=89,s=1,so=1)
+						press('{ENTER 3}',s=3,so=3)
+						revive()
+						click(554,offy=120,s=.5)
+						press('{VK_ESCAPE}',s=1,so=1)
+						click(244,offy=36,s=1,so=1,c=5)
+						press('~',s=10,so=5)
+						send(b'r',s=45,so=20)
+						connected=False
+						assert 0
 					if useful['w_l_f']:
 						useful['th_counter']-=1
 						parameters[1]=str(useful['th_counter'])
@@ -928,7 +942,7 @@ def launch_in_process(conn,client,name,server,parameters):
 
 			except:
 				logging.info('Error in Treasure Hunt',exc_info=True)
-				randomteleport()
+				if connected:	randomteleport()
 
 	def generate(cells,direction):
 		tres,res=[],[]
@@ -1145,6 +1159,7 @@ def launch_in_process(conn,client,name,server,parameters):
 					logging.info('fight ended no action needed')
 					return 1
 				elif boo>5:	press('{F1}')
+
 		except:
 			logging.error(f'Eroor in wait_check_fight {tmin} {tmax} {cond}',exc_info=True)
 
