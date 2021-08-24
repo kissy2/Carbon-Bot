@@ -1,7 +1,7 @@
 Set the maximum number of hunts allowed (default is 50) : 50
 Set the time between two consecutive hunts (default is "0-15" in seconds) : 0-21
 Set sleeping time between map changes (default is "2-5" seconds) : 2-5
-Set the sleep time between two hints (default is "7-15" seconds) : 5-12
+Set the sleep time between two hints (default is "7-15" seconds) : 5-10
 Set an action to execute when a moderator is present on the server (1- Continue | 2- Stop | 3- Disconnect) : 1
 Set pausing function (run for 90-150 minutes then disconnect and wait for 60-90 minutes before reconnecting): 125-180|61-100
 Do you want to harvest resources while doing a hunt (1- yes with safe mode | 2- yes without safe mode | 3- no ) : 3

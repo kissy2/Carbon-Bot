@@ -75,17 +75,24 @@ def hook(login,password,name):
 				sleep(120)
 
 		if not (window:=get_window(name)):
-			while not (window:=get_window('Dofus 2.')):
+			if not (window:=get_window('Dofus 2.')):
 				try:
+					dofus_closer()
 					Popen('call "D:/Games/Ankama/dofus/Dofus.exe"',stdout=DEVNULL,shell=True)
-					sleep(15)
+					counter=30
+					while not (window:=get_window('Dofus')) and (counter:=counter-1):	sleep(1)
+					app=get_hwnd(window[0])
+					app.minimize()
+					while not get_window('Dofus 2.') and (counter:=counter-1):	sleep(1)
+					sleep(5)
 				except Exception as e:
 					print("Couldnt start dofus client",e)
 					return -1
-			app=get_hwnd(window[0])
+
+			app.set_focus()
 			app.minimize()
-			click(app,700,430,s=1)
-			click(app,675,225,c=5,s=1)
+			click(app,700,430,c=3,s=1)
+			click(app,675,225,c=3,s=1)
 			press(app,login)
 			press(app,'{TAB}',s=1)
 			press(app,password)
@@ -99,7 +106,6 @@ def hook(login,password,name):
 		return window[0]
 	except Exception as e:
 		print('Hooking dofus client failed ',e)
-		Popen('setx eca 0',stdout=DEVNULL)
 		sleep(300)
 		return hook(login,password,name) #bad if max depth reccursion reached .....
 	finally:
