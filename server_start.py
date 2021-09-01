@@ -239,7 +239,7 @@ def launch_in_process(conn,client,name,server,parameters):
 							press('{VK_ESCAPE}',s=1,so=1)
 							click(244,offy=36,s=1,so=1,c=5)
 							press('~',s=5,so=5)
-							send(b'r',s=45,so=20)
+							send(b'r',s=60)
 						return get_current_node(cond,mapid,None,True)
 					except Exception as e:
 						logging.info(f'c koi cette merde {e}')
@@ -458,12 +458,12 @@ def launch_in_process(conn,client,name,server,parameters):
 								'2': {'range': (1, 4, False),'ap':5, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
 								'3': {'range': (1, 3, False),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False}}
 								if useful['my_level']<135 else
-								{'1': {'range': (1, 5, False),'ap':4, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
+								{'1': {'range': (1, 5, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
 								'2': {'range': (1, 4, False),'ap':5, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
 								'3': {'range': (1, 3, False),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
 								'4': {'range': (1, 6, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': False, 'inline': False}}
 								if useful['my_level']<175 else
-								{'1': {'range': (1, 5, False),'ap':4, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
+								{'1': {'range': (1, 5, False),'ap':4, 'cpt' : 1 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': True},
 								'2': {'range': (1, 4, False),'ap':5, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
 								'3': {'range': (1, 3, False),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
 								'4': {'range': (1, 1, False),'ap':3, 'cpt' : 2 , 'recast': 0, 'fc': 0, 'sight': True, 'inline': False},
@@ -928,7 +928,7 @@ def launch_in_process(conn,client,name,server,parameters):
 						press('{VK_ESCAPE}',s=1,so=1)
 						click(244,offy=36,s=1,so=1,c=5)
 						press('~',s=10,so=5)
-						send(b'r',s=45,so=20)
+						send(b'r',s=60)
 						connected=False
 						assert 0
 					if useful['w_l_f']:
@@ -1578,8 +1578,8 @@ def launch_in_process(conn,client,name,server,parameters):
 	def explore():
 		try:
 			logging.info('exploring zaaps')
-			# teleport('astrub')
-			while not useful['mapid']:	sleep(5) #remove on money >1000k
+			teleport('astrub')
+			# while not useful['mapid']:	sleep(5) #remove on money >1000k
 			for x in collection.paths.find_one({'_id':"zaaps"},{'nodes'})['nodes']:	
 				if x!=(t:=move(x)):
 					logging.error(f'couldn\'t finish exploring stop in this node {t}')
@@ -1702,7 +1702,7 @@ def launch_in_process(conn,client,name,server,parameters):
 	for _ in range(3):	press('~',s=.5,so=1)
 	press('{VK_NUMPAD6}',s=1,so=2)
 	if useful['mount'] and 'riding' in useful['mount']  and useful['mount']['riding']:	press('{VK_NUMPAD6}',s=1,so=1)
-	for x in ' /solo~':	press(x,s=.2,so=.15)
+	for x in ' /solo~':	press(x,s=.2)
 	if (cond:=parameters[0] =='1' and parameters[7]!='3') or parameters[0]=='2':
 		g,param=lambda rsc:[s for r in rsc for x in collection.skills.find({'_id':{'$regex': '^%s.*'%(r),'$options':'i'}}) for s in x['skill_id']],[[y.replace(' ','') for y in x[x.find(':')+1:].split(',')]for x in parameters[7:]]
 		param_list=[[x for x in collection.paths.find({'$or':[{'_id':{'$regex':f'.*{x}.*','$options':'i'}} for x in param[0]]},{'zaap':1,'nodes':1})],set(g(param[1])),g(param[2]),{x['_id']:[x['offx'],x['offy']] for x in collection.exceptions.find({},{'offx':1,'offy':1})},parameters[7]=='1']

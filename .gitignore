@@ -1,6 +1,7 @@
 __pycache__
 /venv/
 /.vscode/
-cbd
+cbd*
 /logs
 /.idea
+notifications*

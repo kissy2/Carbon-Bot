@@ -102,40 +102,41 @@ def addMapComplementaryInformationsDataMessage(ans):
 			if (not useful['contextualId'] or not useful['accountId']) and 'name' in actor and actor['name'] == useful['name']:
 				useful['accountId'],useful['contextualId']=actor['accountId'],actor['contextualId']
 
-			elif actor["__type__"] == "GameRolePlayMerchantInformations":
-				useful["map_merchant"][actor["contextualId"]] = {}
-				useful["map_merchant"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
+			elif '__type__' in actor:
+				if actor["__type__"] == "GameRolePlayMerchantInformations":
+					useful["map_merchant"][actor["contextualId"]] = {}
+					useful["map_merchant"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
 
-			elif actor["__type__"] == "GameRolePlayNpcInformations":
-				useful["map_npc"][actor["contextualId"]] = {}
-				useful["map_npc"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
+				elif actor["__type__"] == "GameRolePlayNpcInformations":
+					useful["map_npc"][actor["contextualId"]] = {}
+					useful["map_npc"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
 
-			elif actor["__type__"] == "GameRolePlayTreasureHintInformations":
-				useful["map_npc"][actor["npcId"]] = actor["disposition"]["cellId"]
+				elif actor["__type__"] == "GameRolePlayTreasureHintInformations":
+					useful["map_npc"][actor["npcId"]] = actor["disposition"]["cellId"]
 
-			elif actor["__type__"] == "GameRolePlayCharacterInformations":
-				if actor["contextualId"] == useful["contextualId"]:
-					useful["mypos"] = actor["disposition"]["cellId"]
-				else:
-					if actor["name"] and "["  == actor["name"][0]:
-						useful["threat"]="high"
-						logging.critical("MODERATOR PRESENCE OF THIS MAP")
-					useful["map_players"][actor["contextualId"]] = {"name":actor["name"]}
-					useful["map_players"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
+				elif actor["__type__"] == "GameRolePlayCharacterInformations":
+					if actor["contextualId"] == useful["contextualId"]:
+						useful["mypos"] = actor["disposition"]["cellId"]
+					else:
+						if actor["name"] and "["  == actor["name"][0]:
+							useful["threat"]="high"
+							logging.critical("MODERATOR PRESENCE OF THIS MAP")
+						useful["map_players"][actor["contextualId"]] = {"name":actor["name"]}
+						useful["map_players"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
 
-			elif actor["__type__"] == "GameRolePlayGroupMonsterInformations":
-				# logging.info("Adding mob", actor)
-				useful["map_mobs"][actor["contextualId"]] = {}
-				useful["map_mobs"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
-				useful["map_mobs"][actor["contextualId"]]["info"] = []
-				useful["map_mobs"][actor["contextualId"]]["alllevel"] = int(
-					actor["staticInfos"]["mainCreatureLightInfos"]["level"])
-				useful["map_mobs"][actor["contextualId"]]["info"].append(
-					(actor["staticInfos"]["mainCreatureLightInfos"]["genericId"],
-					 actor["staticInfos"]["mainCreatureLightInfos"]["level"]))
-				for under in actor["staticInfos"]["underlings"]:
-					useful["map_mobs"][actor["contextualId"]]["info"].append((under["genericId"], under["level"]))
-					useful["map_mobs"][actor["contextualId"]]["alllevel"] += int(under["level"])
+				elif actor["__type__"] == "GameRolePlayGroupMonsterInformations":
+					# logging.info("Adding mob", actor)
+					useful["map_mobs"][actor["contextualId"]] = {}
+					useful["map_mobs"][actor["contextualId"]]["cellId"] = actor["disposition"]["cellId"]
+					useful["map_mobs"][actor["contextualId"]]["info"] = []
+					useful["map_mobs"][actor["contextualId"]]["alllevel"] = int(
+						actor["staticInfos"]["mainCreatureLightInfos"]["level"])
+					useful["map_mobs"][actor["contextualId"]]["info"].append(
+						(actor["staticInfos"]["mainCreatureLightInfos"]["genericId"],
+						 actor["staticInfos"]["mainCreatureLightInfos"]["level"]))
+					for under in actor["staticInfos"]["underlings"]:
+						useful["map_mobs"][actor["contextualId"]]["info"].append((under["genericId"], under["level"]))
+						useful["map_mobs"][actor["contextualId"]]["alllevel"] += int(under["level"])
 
 		for elemnt2 in ans["statedElements"]:
 			# logging.info("adding element")
@@ -369,7 +370,6 @@ def read(type, data: Data):
 			useful['dialog']=True
 
 		elif ans["__type__"] == "MountClientData":
-			logging.info(f'mount {ans}')
 			useful['mount']['lvl'] = ans['level']
 			useful['mount']['energy'] = ans['energy']
 			for x in ans['effectList']:
@@ -391,8 +391,8 @@ def read(type, data: Data):
 				if useful['contextualId']==ans['targetId']:
 					useful['lifepoints']-=ans['loss']
 					useful['maxLifePoints']-=ans['permanentDamages']
-					if not ans['loss'] and ans['permanentDamages']:
-						useful['lifepoints']-=ans['permanentDamages']
+					# if not ans['loss'] and ans['permanentDamages']:
+						# useful['lifepoints']-=ans['permanentDamages']
 					# logging.info(f"{useful['lifepoints'],useful['maxLifePoints'],ans}")
 				elif ans['targetId'] in useful['fight']['enemyteamMembers']: useful['fight']['enemyteamMembers'][ans['targetId']]['lifepoints']-=ans['loss']
 

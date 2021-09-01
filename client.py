@@ -75,27 +75,23 @@ def hook(login,password,name):
 				sleep(120)
 
 		if not (window:=get_window(name)):
-			if not (window:=get_window('Dofus 2.')):
-				try:
-					dofus_closer()
-					Popen('call "D:/Games/Ankama/dofus/Dofus.exe"',stdout=DEVNULL,shell=True)
-					counter=30
-					while not (window:=get_window('Dofus')) and (counter:=counter-1):	sleep(1)
-					app=get_hwnd(window[0])
-					app.minimize()
-					while not get_window('Dofus 2.') and (counter:=counter-1):	sleep(1)
-					sleep(5)
-				except Exception as e:
-					print("Couldnt start dofus client",e)
-					return -1
-
+			try:
+				dofus_closer()
+				Popen('call "D:/Games/Ankama/dofus/Dofus.exe"',stdout=DEVNULL,shell=True)
+				counter=30
+				while not (window:=get_window('Dofus 2.')) and (counter:=counter-1):	sleep(1)
+				sleep(5)
+			except Exception as e:
+				print("Couldnt start dofus client",e)
+				return -1
+			app=get_hwnd(window[0])
 			app.set_focus()
-			app.minimize()
 			click(app,700,430,c=3,s=1)
 			click(app,675,225,c=3,s=1)
-			press(app,login)
+			for x in login :	press(app,x,s=.2)
 			press(app,'{TAB}',s=1)
-			press(app,password)
+			for x in password :	press(app,x,s=.2)
+			press(app,'{ENTER 3}',s=5)
 			press(app,'{ENTER 3}')
 		
 		counter=40
