@@ -46,7 +46,7 @@ class DefaultSession(object):
         if self.prn:
             result = self.prn(pkt)
             # if result is not None:
-                # print(result)
+            # print(result)
 
 
 class IPSession(DefaultSession):
@@ -100,6 +100,7 @@ class StringBuffer(object):
     If a TCP fragment is missed, this class will fill the missing space with
     zeros.
     """
+
     def __init__(self):
         self.content = bytearray(b"")
         self.content_len = 0
@@ -130,6 +131,7 @@ class StringBuffer(object):
 
     def __bool__(self):
         return bool(self.content_len)
+
     __nonzero__ = __bool__
 
     def __len__(self):
@@ -137,6 +139,7 @@ class StringBuffer(object):
 
     def __bytes__(self):
         return bytes(self.content)
+
     __str__ = __bytes__
 
 
@@ -159,6 +162,7 @@ class TCPSession(IPSession):
 
     A (hard to understand) example can be found in scapy/layers/http.py
     """
+
     @classmethod
     def tcp_reassemble(cls, data, metadata):
         detect_end = metadata.get("detect_end", None)
@@ -203,7 +207,6 @@ class TCPSession(IPSession):
             if detect_end(data):
                 http_packet = HTTP(data)
                 return http_packet
-
 
     fmt = ('TCP {IP:%IP.src%}{IPv6:%IPv6.src%}:%r,TCP.sport% > ' +
            '{IP:%IP.dst%}{IPv6:%IPv6.dst%}:%r,TCP.dport%')
