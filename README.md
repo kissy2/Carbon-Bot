@@ -3,7 +3,7 @@
 A bot is a piece of software that emulates a real game client to automate certain tasks. This software is a combination of pixel and socket bot, which means that it uses the pixels of the screen (+ your mouse and keyboard) to emulate actions and network packets to keep tracking the progress in the game.
 And it can run multiple clients in the background.
 
-⚠️ It should be noted that this bot is only available on Windows.\
+⚠️ It should be noted that this bot is only available on Windows.
 
 Easy Control: play, pause/resume or stop the bot.\
 Connection Handler : This software knows when your connection goes out and will wait for it to come back before continuing or will automatically pause if it takes a long time before reconnecting.\
